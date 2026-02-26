@@ -1,6 +1,6 @@
 [package]
 name = "screenai-desktop"
-version = "0.1.0"
+version = "1.1.0"
 description = "ScreenAI — Universal AI Screen Assistant"
 authors = ["ScreenAI"]
 license = "AGPL-3.0-or-later"
