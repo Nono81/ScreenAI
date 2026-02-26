@@ -9,6 +9,7 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use screenshots::image::ImageOutputFormat;
 use screenshots::Screen;
 use serde::Serialize;
 use std::io::Cursor;
@@ -38,7 +39,7 @@ fn capture_screen() -> Result<CapturePayload, String> {
     // Convert to PNG bytes
     let mut buf = Cursor::new(Vec::new());
     image
-        .write_to(&mut buf, image::ImageFormat::Png)
+        .write_to(&mut buf, ImageOutputFormat::Png)
         .map_err(|e| e.to_string())?;
     
     let base64_data = BASE64.encode(buf.into_inner());
@@ -67,7 +68,7 @@ fn capture_region(x: i32, y: i32, w: u32, h: u32) -> Result<CapturePayload, Stri
     
     let mut buf = Cursor::new(Vec::new());
     image
-        .write_to(&mut buf, image::ImageFormat::Png)
+        .write_to(&mut buf, ImageOutputFormat::Png)
         .map_err(|e| e.to_string())?;
     
     let base64_data = BASE64.encode(buf.into_inner());
@@ -81,7 +82,7 @@ fn capture_region(x: i32, y: i32, w: u32, h: u32) -> Result<CapturePayload, Stri
     })
 }
 
-fn create_overlay_window(app: &AppHandle, mode: &str) {
+fn create_overlay_window(app: &AppHandle, _mode: &str) {
     // Hide main window, show overlay
     if let Some(main_window) = app.get_window("main") {
         let _ = main_window.hide();
@@ -108,14 +109,14 @@ fn create_overlay_window(app: &AppHandle, mode: &str) {
                 .fullscreen(true)
                 .decorations(false)
                 .always_on_top(true)
-                .transparent(true)
                 .build();
 
                 if let Ok(window) = overlay {
                     let payload_clone = payload.clone();
                     // Wait for window to load, then send capture
-                    window.once("ready", move |_| {
-                        let _ = window.emit("capture", &payload_clone);
+                    let win = window.clone();
+                    window.once("ready", move |_event: tauri::Event| {
+                        let _ = win.emit("capture", &payload_clone);
                     });
                 }
             }

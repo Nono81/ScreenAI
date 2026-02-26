@@ -3,7 +3,7 @@
 // ============================================
 // This bridges the Tauri backend with the shared UI
 
-import { ScreenAIOverlay } from '../src/ui/overlay/overlay';
+import { ScreenAIOverlay } from '@/ui/overlay/overlay';
 
 declare global {
   interface Window {
