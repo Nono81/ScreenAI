@@ -1,0 +1,56 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeDevCommand": "cd .. && npm run dev:desktop-frontend",
+    "beforeBuildCommand": "cd .. && npm run build:desktop-frontend",
+    "devPath": "http://localhost:5174",
+    "distDir": "../dist-desktop"
+  },
+  "package": {
+    "productName": "ScreenAI",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": { "all": false, "open": true },
+      "dialog": { "all": true },
+      "fs": { "all": true, "scope": ["$APPDATA/**", "$HOME/**"] },
+      "globalShortcut": { "all": true },
+      "window": { "all": true },
+      "path": { "all": true }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.screenai.app",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "ScreenAI",
+        "width": 1200,
+        "height": 800,
+        "visible": false,
+        "decorations": true,
+        "transparent": false
+      }
+    ],
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
+    }
+  }
+}

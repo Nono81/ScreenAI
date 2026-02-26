@@ -1,0 +1,6 @@
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" id="logo2" class="w-24 h-24 shadow-2xl rounded-[22px]" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="100" rx="22" fill="#2e1065"/>
+                    <path d="M25 40 L25 25 L40 25 M75 40 L75 25 L60 25 M25 60 L25 75 L40 75 M75 60 L75 75 L60 75" stroke="#c4b5fd" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <circle cx="50" cy="50" r="14" stroke="#ffffff" stroke-width="4" fill="none"/>
+                    <circle cx="50" cy="50" r="5" fill="#a78bfa"/>
+                </svg>

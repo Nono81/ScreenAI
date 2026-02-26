@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "ScreenAI — Universal AI Screen Assistant",
+  "version": "1.1.0",
+  "description": "Capture your screen, annotate, and ask any AI — without leaving your workflow.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "commands"
+  ],
+  "commands": {
+    "capture-fullscreen": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "MacCtrl+Shift+S"
+      },
+      "description": "Capture full screen"
+    },
+    "capture-region": {
+      "suggested_key": {
+        "default": "Alt+Shift+A",
+        "mac": "MacCtrl+Shift+A"
+      },
+      "description": "Capture selected region"
+    },
+    "toggle-highlight": {
+      "suggested_key": {
+        "default": "Alt+Shift+H",
+        "mac": "Alt+Shift+H"
+      },
+      "description": "Toggle highlight mode"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.ts"],
+      "css": []
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": []
+}

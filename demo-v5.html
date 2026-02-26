@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScreenAI</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ===== LIGHT THEME (default) ===== */
+:root{
+  --bg:#f7f7f8;--bg2:#ffffff;--bg3:#f0f0f3;--bg4:#e8e8ec;
+  --surf:#ffffff;--surfh:rgba(0,0,0,0.025);
+  --bd:#e3e3e8;--bds:#ededf0;
+  --t1:#18181b;--t2:#71717a;--t3:#a1a1aa;--t4:#d4d4d8;
+  --ac:#7c3aed;--acl:#8b5cf6;--acbg:rgba(124,58,237,0.06);--acbg2:rgba(124,58,237,0.12);--acsh:rgba(124,58,237,0.25);
+  --grn:#10b981;--grnbg:rgba(16,185,129,0.07);
+  --red:#ef4444;--redbg:rgba(239,68,68,0.06);
+  --org:#f59e0b;--orgbg:rgba(245,158,11,0.08);
+  --sh-s:0 1px 2px rgba(0,0,0,0.04);--sh:0 4px 16px rgba(0,0,0,0.05);--sh-l:0 12px 40px rgba(0,0,0,0.08);
+  --msg-u-bg:var(--ac);--msg-u-c:white;--msg-a-bg:var(--bg2);--msg-a-bd:var(--bds);
+  --r:10px;--rl:14px;
+  --f:'DM Sans',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;
+}
+
+/* ===== DARK THEME ===== */
+.dark{
+  --bg:#0f0f13;--bg2:#18181f;--bg3:#1e1e28;--bg4:#282834;
+  --surf:#1e1e28;--surfh:rgba(255,255,255,0.03);
+  --bd:#2a2a36;--bds:#232330;
+  --t1:#e4e4e7;--t2:#8888a0;--t3:#52526a;--t4:#3a3a4a;
+  --sh-s:0 1px 2px rgba(0,0,0,0.2);--sh:0 4px 16px rgba(0,0,0,0.25);--sh-l:0 12px 40px rgba(0,0,0,0.4);
+  --msg-u-bg:var(--ac);--msg-u-c:white;--msg-a-bg:var(--bg3);--msg-a-bd:var(--bd);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--t1);height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+.app{display:flex;height:100vh}
+
+/* ===== SIDEBAR ===== */
+.sb{width:270px;min-width:270px;background:var(--bg2);border-right:1px solid var(--bd);display:flex;flex-direction:column;transition:background .2s}
+.sb-top{padding:16px 16px 12px;border-bottom:1px solid var(--bds)}
+.sb-brand{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.logo{width:30px;height:30px;background:#2e1065;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;box-shadow:0 2px 8px var(--acsh);flex-shrink:0;overflow:hidden}
+.sb-name{font-size:16px;font-weight:700;letter-spacing:-.4px}
+.ver{font-size:9px;color:var(--t3);background:var(--bg3);padding:2px 7px;border-radius:12px;margin-left:auto}
+
+.bcap{width:100%;padding:10px;background:var(--ac);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;font-family:var(--f);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 2px 8px var(--acsh)}
+.bcap:hover{background:var(--acl);transform:translateY(-1px);box-shadow:0 4px 16px var(--acsh)}
+.bcap svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+.brow{display:flex;gap:6px;margin-top:8px}
+.bghost{flex:1;padding:7px;background:transparent;color:var(--t2);border:1px solid var(--bd);border-radius:var(--r);font-size:11px;font-weight:500;font-family:var(--f);cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center;gap:4px}
+.bghost:hover{background:var(--acbg);color:var(--ac);border-color:var(--acbg2)}
+.bghost svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+
+.sb-srch{padding:8px 16px}
+.srch-w{position:relative}
+.srch-w svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--t3);fill:none;stroke-width:2;pointer-events:none}
+.srch{width:100%;padding:8px 12px 8px 32px;background:var(--bg3);border:1px solid transparent;border-radius:var(--r);color:var(--t1);font-size:12px;font-family:var(--f);outline:none;transition:all .15s}
+.srch:focus{background:var(--bg2);border-color:var(--ac);box-shadow:0 0 0 3px var(--acbg)}
+.srch::placeholder{color:var(--t3)}
+
+.sb-nav{flex:1;overflow-y:auto;padding:4px 8px 12px}
+.sec{margin-bottom:4px}
+.sec-h{display:flex;align-items:center;padding:6px 8px;cursor:pointer;user-select:none;border-radius:6px;transition:background .1s}
+.sec-h:hover{background:var(--surfh)}
+.sec-t{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;flex:1}
+.sec-h svg{width:12px;height:12px;stroke:var(--t3);fill:none;stroke-width:2;transition:transform .15s}
+.sec-h.cl svg{transform:rotate(-90deg)}
+.sec-items{padding-left:4px}.sec-h.cl+.sec-items{display:none}
+
+.sproj{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);cursor:pointer;transition:all .1s;margin-bottom:1px}
+.sproj:hover{background:var(--surfh)}.sproj.on{background:var(--acbg);color:var(--ac)}
+.sproj svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;flex-shrink:0}
+.sproj-i{flex:1;min-width:0}
+.sproj-n{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sproj-m{font-size:10px;color:var(--t3)}
+
+.sconv{padding:6px 10px 6px 36px;border-radius:8px;cursor:pointer;transition:all .1s;font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
+.sconv:hover{background:var(--surfh);color:var(--t1)}.sconv.on{background:var(--acbg);color:var(--ac);font-weight:500}
+
+.sb-ft{padding:8px 12px;border-top:1px solid var(--bds)}
+.sb-ft-btn{width:100%;padding:7px 10px;background:transparent;border:none;border-radius:8px;cursor:pointer;color:var(--t2);font-size:12px;font-family:var(--f);transition:all .1s;display:flex;align-items:center;gap:6px;text-align:left}
+.sb-ft-btn:hover{background:var(--surfh);color:var(--t1)}
+.sb-ft-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+/* ===== MAIN ===== */
+.mn{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;background:var(--bg);transition:background .2s}
+
+/* Welcome */
+.welc{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:40px}
+.welc.hid{display:none}
+.welc-ico{width:64px;height:64px;background:linear-gradient(135deg,var(--ac),#a78bfa);border-radius:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px var(--acsh)}
+.welc-ico svg{width:32px;height:32px;stroke:#fff;fill:none;stroke-width:1.6}
+.welc h1{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.welc p{color:var(--t2);font-size:14px;text-align:center;max-width:420px;line-height:1.65}
+.bcap-lg{padding:14px 32px;font-size:14px;border-radius:var(--rl);gap:10px}
+.bcap-lg svg{width:18px;height:18px}
+.scuts{display:flex;gap:20px;margin-top:2px}
+.scuts div{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3)}
+.kbd{display:inline-block;padding:3px 6px;background:var(--bg2);border:1px solid var(--bd);border-radius:5px;font-family:var(--fm);font-size:10px;color:var(--t2);box-shadow:var(--sh-s)}
+
+/* Proj head */
+.ph{padding:14px 24px;border-bottom:1px solid var(--bds);background:var(--bg2);transition:background .2s}
+.ph-top{display:flex;align-items:center;gap:8px}
+.ph h2{font-size:16px;font-weight:700;letter-spacing:-.3px}
+.ib{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:7px;cursor:pointer;color:var(--t3);transition:all .1s}
+.ib:hover{background:var(--surfh);color:var(--t1)}
+.ib svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+.ph-desc{font-size:12px;color:var(--t2);margin-top:4px;line-height:1.5}
+.ph-instr{font-size:11px;color:var(--t3);margin-top:8px;padding:8px 12px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--ac);line-height:1.5;font-style:italic;transition:background .2s}
+
+/* Chat */
+.ch{display:flex;align-items:center;gap:8px;padding:10px 24px;border-bottom:1px solid var(--bds);background:var(--bg2);transition:background .2s}
+.ch-t{flex:1;min-width:0}
+.ch-t h3{font-size:14px;font-weight:600;letter-spacing:-.2px}
+.badge{display:inline-block;font-size:10px;font-weight:600;color:var(--ac);background:var(--acbg);padding:3px 10px;border-radius:20px;margin-top:2px}
+
+.chat{flex:1;display:none;flex-direction:column;overflow:hidden}
+.chat.on{display:flex}
+.msgs{flex:1;overflow-y:auto;padding:18px 24px;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:75%;border-radius:var(--rl);padding:11px 16px;font-size:13px;line-height:1.65;animation:mi .2s ease}
+@keyframes mi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.mu{align-self:flex-end;background:var(--msg-u-bg);color:var(--msg-u-c);border-bottom-right-radius:4px;box-shadow:0 2px 8px var(--acsh)}
+.ma{align-self:flex-start;background:var(--msg-a-bg);border:1px solid var(--msg-a-bd);border-bottom-left-radius:4px;box-shadow:var(--sh-s);transition:background .2s}
+.ma strong{color:var(--ac)}.ma code{background:var(--acbg);color:var(--ac);padding:1px 6px;border-radius:5px;font-family:var(--fm);font-size:11.5px}
+.mcode{background:var(--bg3);border-radius:8px;padding:10px 12px;font-family:var(--fm);font-size:11.5px;margin:8px 0;border:1px solid var(--bds);line-height:1.5;transition:background .2s}
+.msg p{margin-bottom:6px}.msg p:last-child{margin-bottom:0}
+.mimg{display:block;max-width:100%;max-height:120px;border-radius:8px;margin-bottom:8px;border:1px solid var(--bd);cursor:pointer;transition:opacity .12s}
+.mimg:hover{opacity:.85}
+
+/* Input */
+.ibar{padding:12px 24px;border-top:1px solid var(--bds);background:var(--bg2);transition:background .2s}
+.irow{display:flex;gap:8px;align-items:flex-end}
+.itx{flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);color:var(--t1);font-size:13px;font-family:var(--f);resize:none;outline:none;transition:all .15s;line-height:1.5}
+.itx:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acbg)}
+.itx::placeholder{color:var(--t3)}
+.itools{display:flex;gap:4px}
+.it{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;color:var(--t2);transition:all .12s}
+.it:hover{background:var(--acbg);color:var(--ac);border-color:var(--acbg2)}
+.it svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+.it.pr{background:var(--ac);color:#fff;border-color:var(--ac)}.it.pr:hover{background:var(--acl)}
+.imeta{display:flex;align-items:center;gap:8px;margin-top:7px;font-size:10px;color:var(--t3);flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:3px;background:var(--grnbg);color:var(--grn);padding:3px 8px;border-radius:20px;font-weight:600}
+.chip svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-width:2}
+.quota{display:inline-flex;align-items:center;gap:3px;background:var(--acbg);color:var(--ac);padding:3px 8px;border-radius:20px;font-weight:600}
+
+/* ===== MODAL ===== */
+.mov{position:fixed;inset:0;background:rgba(0,0,0,0.25);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
+.mov.op{display:flex}
+.mod{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rl);padding:24px;width:440px;max-width:90vw;box-shadow:var(--sh-l);transition:background .2s}
+.mod h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.mf{margin-bottom:12px}
+.mf label{display:block;font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.minp{width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;color:var(--t1);font-size:13px;font-family:var(--f);outline:none;transition:all .15s}
+.minp:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acbg)}
+.mta{width:100%;min-height:65px;padding:9px 12px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;color:var(--t1);font-size:13px;font-family:var(--f);outline:none;resize:vertical;line-height:1.5;transition:all .15s}
+.mta:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acbg)}
+.msel{width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;color:var(--t1);font-size:13px;font-family:var(--f);outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a1a1aa' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.mact{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.mb{padding:9px 20px;border-radius:var(--r);border:none;font-size:13px;font-weight:600;font-family:var(--f);cursor:pointer;transition:all .15s}
+.mbc{background:var(--bg3);color:var(--t2)}.mbc:hover{background:var(--bg4)}
+.mbp{background:var(--ac);color:#fff}.mbp:hover{background:var(--acl)}
+
+/* ===== SETTINGS ===== */
+.so{position:absolute;inset:0;background:rgba(0,0,0,0.12);backdrop-filter:blur(2px);z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.so.op{opacity:1;pointer-events:all}
+.sod{position:absolute;top:0;right:0;bottom:0;width:380px;background:var(--bg2);border-left:1px solid var(--bd);transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1),background .2s;display:flex;flex-direction:column;z-index:101;box-shadow:-8px 0 32px rgba(0,0,0,0.05)}
+.so.op .sod{transform:translateX(0)}
+.soh{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--bds)}
+.soh h3{flex:1;font-size:14px;font-weight:700}
+.sob{flex:1;overflow-y:auto;padding:16px 18px}
+
+.ss{margin-bottom:20px}
+.sst{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
+.sr{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--bg);border:1px solid var(--bds);border-radius:var(--r);margin-bottom:4px;transition:background .2s}
+.sl{font-size:12px;font-weight:500}.sd{font-size:10px;color:var(--t3);margin-top:2px;line-height:1.4}
+.s-l{flex:1;min-width:0}
+.sel{padding:5px 24px 5px 8px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:11px;font-family:var(--f);outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 4 4-4' stroke='%23a1a1aa' fill='none' stroke-width='1.2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center}
+.si{width:100%;padding:5px 8px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:11px;font-family:var(--f);outline:none}
+.tgl{position:relative;width:38px;height:22px;flex-shrink:0}
+.tgl input{opacity:0;width:0;height:0;position:absolute}
+.tgt{position:absolute;inset:0;background:var(--t4);border-radius:22px;cursor:pointer;transition:background .2s}
+.tgt::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.12)}
+.tgl input:checked+.tgt{background:var(--ac)}
+.tgl input:checked+.tgt::before{transform:translateX(16px)}
+.pc{background:var(--bg);border:1px solid var(--bds);border-radius:var(--r);padding:12px;margin-bottom:5px;transition:background .2s}
+.pch{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.pcn{font-size:12px;font-weight:600}
+.pcf{display:flex;flex-direction:column;gap:5px}
+.fl{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.pta{width:100%;min-height:60px;padding:8px 10px;background:var(--bg);border:1px solid var(--bd);border-radius:7px;color:var(--t1);font-size:11px;font-family:var(--f);resize:vertical;outline:none;line-height:1.5;transition:background .2s}
+
+/* Theme toggle in settings */
+.th-row{display:flex;gap:5px}
+.th-o{flex:1;padding:7px;text-align:center;font-size:11px;font-weight:500;background:var(--bg);border:1px solid var(--bd);border-radius:7px;cursor:pointer;color:var(--t2);transition:all .12s}
+.th-o:hover{border-color:var(--t3)}.th-o.on{border-color:var(--ac);color:var(--ac);background:var(--acbg)}
+
+/* Accent picker */
+.ac-row{display:flex;gap:6px}
+.ac-o{width:24px;height:24px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:all .12s}
+.ac-o:hover{transform:scale(1.12)}.ac-o.on{border-color:var(--t1);box-shadow:0 0 0 2px var(--bg)}
+
+.beta{font-size:9px;font-weight:700;color:var(--org);background:var(--orgbg);padding:2px 7px;border-radius:12px;margin-left:5px}
+.betaw{font-size:10px;color:var(--org);margin-top:4px;line-height:1.4}
+.bsv{width:100%;padding:10px;background:var(--ac);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;font-family:var(--f);cursor:pointer;transition:all .15s;margin-top:6px}
+.bsv:hover{background:var(--acl)}
+
+/* Context menu */
+.ctx{position:fixed;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:4px;box-shadow:var(--sh-l);z-index:300;min-width:160px;display:none;transition:background .2s}
+.ctx.op{display:block}
+.ctx-i{display:block;width:100%;padding:7px 12px;background:none;border:none;border-radius:6px;color:var(--t1);font-size:12px;font-family:var(--f);cursor:pointer;text-align:left;transition:background .1s}
+.ctx-i:hover{background:var(--bg3)}.ctx-i.dng{color:var(--red)}.ctx-i.dng:hover{background:var(--redbg)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- SIDEBAR -->
+  <div class="sb">
+    <div class="sb-top">
+      <div class="sb-brand"><div class="logo"><svg viewBox="0 0 100 100" width="30" height="30"><rect width="100" height="100" rx="22" fill="#2e1065"/><path d="M25 40L25 25L40 25M75 40L75 25L60 25M25 60L25 75L40 75M75 60L75 75L60 75" stroke="#c4b5fd" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="50" cy="50" r="14" stroke="#fff" stroke-width="4" fill="none"/><circle cx="50" cy="50" r="5" fill="#a78bfa"/></svg></div><span class="sb-name">ScreenAI</span><span class="ver">v0.1</span></div>
+      <button class="bcap" onclick="openCap()"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Capturer l'écran</button>
+      <div class="brow">
+        <button class="bghost" onclick="openM('conv')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Discussion</button>
+        <button class="bghost" onclick="openM('proj')"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>Projet</button>
+      </div>
+    </div>
+    <div class="sb-srch"><div class="srch-w"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input class="srch" placeholder="Rechercher..."></div></div>
+    <div class="sb-nav">
+      <div class="sec"><div class="sec-h" onclick="this.classList.toggle('cl')"><span class="sec-t">Projets</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="sec-items">
+          <div class="sproj on" oncontextmenu="showC(event)"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg><div class="sproj-i"><div class="sproj-n">ScreenAI</div><div class="sproj-m">3 conversations</div></div></div>
+          <div class="sconv on" oncontextmenu="showC(event)">Bug TypeError dashboard</div>
+          <div class="sconv" oncontextmenu="showC(event)">Setup Docker Compose</div>
+          <div class="sconv" oncontextmenu="showC(event)">CSS module import</div>
+          <div class="sproj" oncontextmenu="showC(event)"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg><div class="sproj-i"><div class="sproj-n">Bot Trading Hyperliquid</div><div class="sproj-m">2 conversations</div></div></div>
+          <div class="sconv">Erreur API position sizing</div>
+          <div class="sconv">Backtest Monte Carlo</div>
+        </div>
+      </div>
+      <div class="sec"><div class="sec-h" onclick="this.classList.toggle('cl')"><span class="sec-t">Discussions</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="sec-items">
+          <div class="sconv">Trouver cette robe en ligne</div>
+          <div class="sconv">Analyse chart BTC weekly</div>
+          <div class="sconv">Quel acteur dans ce film ?</div>
+          <div class="sconv">Recette avec mon frigo</div>
+        </div>
+      </div>
+    </div>
+    <div class="sb-ft"><button class="sb-ft-btn" onclick="toggleS()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Paramètres</button></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="mn">
+    <div class="welc hid" id="welc"><div class="welc-ico"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div><h1>Bienvenue sur ScreenAI</h1><p>Capturez votre écran, annotez, et demandez à n'importe quelle IA — sans quitter votre workflow.</p><button class="bcap bcap-lg" onclick="openCap()"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Capturer mon écran</button><div class="scuts"><div><span class="kbd">Alt</span><span class="kbd">Shift</span><span class="kbd">S</span> Plein écran</div><div><span class="kbd">Alt</span><span class="kbd">Shift</span><span class="kbd">A</span> Zone</div></div></div>
+
+    <div class="ph" id="ph"><div class="ph-top"><h2>ScreenAI</h2><button class="ib" onclick="openM('editProj')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div><div class="ph-desc">Extension Chrome + app desktop d'assistant visuel IA universel</div><div class="ph-instr">Tu es un expert React, TypeScript et Tauri. On développe une extension Chrome + app desktop. Réponds avec du code concret.</div></div>
+
+    <div class="chat on" id="chat">
+      <div class="ch"><div class="ch-t"><h3>Bug TypeError dashboard</h3><span class="badge">Claude · Sonnet 4</span></div><button class="ib" onclick="openM('rename')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>
+      <div class="msgs">
+        <div class="msg mu"><img class="mimg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='60'%3E%3Crect width='280' height='60' rx='8' fill='%23f0f0f3'/%3E%3Crect x='8' y='6' width='260' height='10' rx='2' fill='%23e3e3e8'/%3E%3Crect x='8' y='22' width='180' height='10' rx='2' fill='%23e3e3e8'/%3E%3Crect x='8' y='38' width='220' height='10' rx='2' fill='%23fecaca'/%3E%3Crect x='6' y='36' width='224' height='14' rx='2' fill='none' stroke='%23ef4444' stroke-width='1.5'/%3E%3C/svg%3E"><p>Pourquoi j'ai cette erreur TypeError sur le .map() ?</p></div>
+        <div class="msg ma"><p>Le problème est sur la ligne encadrée. L'erreur <code>Cannot read property 'map' of undefined</code> signifie que <strong>data.users</strong> n'existe pas.</p><p><strong>Cause probable :</strong> l'API retourne un tableau directement.</p><div class="mcode">// Si tableau direct
+return data.map(u => u.name);
+
+// Garde défensive
+const users = data.users ?? data ?? [];
+return users.map(u => u.name);</div><p>Ajoute <code>console.log(data)</code> pour vérifier.</p></div>
+        <div class="msg mu"><img class="mimg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='60'%3E%3Crect width='280' height='60' rx='8' fill='%23f0f0f3'/%3E%3Crect x='8' y='6' width='100' height='10' rx='2' fill='%23e3e3e8'/%3E%3Crect x='8' y='22' width='250' height='10' rx='2' fill='%23d1fae5'/%3E%3Crect x='8' y='38' width='160' height='10' rx='2' fill='%23e3e3e8'/%3E%3C/svg%3E"><p>Voilà le console.log, c'est bien un tableau</p></div>
+        <div class="msg ma"><p>Parfait, remplace <code>data.users.map</code> par <code>data.map</code> et ça fonctionnera.</p></div>
+      </div>
+      <div class="ibar"><div class="irow"><textarea class="itx" placeholder="Décris ton problème..." rows="2"></textarea><div class="itools"><button class="it" title="Capturer l'écran" onclick="openCap()"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></button><button class="it" title="Zone"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18" opacity=".3"/></svg></button><button class="it pr" title="Envoyer"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button></div></div><div class="imeta"><span class="chip"><svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>Capture jointe</span><span class="quota">7/10 requêtes gratuites</span><span>Entrée envoyer · Shift+Entrée retour ligne</span></div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="so" id="so"><div class="sod">
+      <div class="soh"><button class="ib" onclick="toggleS()"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button><h3>Paramètres</h3></div>
+      <div class="sob">
+        <div class="ss"><div class="sst">Apparence</div>
+          <div class="sr" style="flex-direction:column;align-items:stretch;gap:6px"><div class="sl">Thème</div><div class="th-row"><button class="th-o on" onclick="setTh('light',this)">Clair</button><button class="th-o" onclick="setTh('dark',this)">Sombre</button><button class="th-o" onclick="setTh('auto',this)">Auto</button></div></div>
+          <div class="sr" style="flex-direction:column;align-items:stretch;gap:6px"><div class="sl">Couleur d'accent</div><div class="ac-row"><button class="ac-o on" style="background:#7c3aed" onclick="setAc('#7c3aed',this)"></button><button class="ac-o" style="background:#3b82f6" onclick="setAc('#3b82f6',this)"></button><button class="ac-o" style="background:#8b5cf6" onclick="setAc('#8b5cf6',this)"></button><button class="ac-o" style="background:#ec4899" onclick="setAc('#ec4899',this)"></button><button class="ac-o" style="background:#10b981" onclick="setAc('#10b981',this)"></button><button class="ac-o" style="background:#f59e0b" onclick="setAc('#f59e0b',this)"></button></div></div>
+        </div>
+        <div class="ss"><div class="sst">Intelligence artificielle</div>
+          <div class="sr"><div class="s-l"><div class="sl">IA par défaut</div></div><select class="sel"><option selected>Claude (Anthropic)</option><option>GPT (OpenAI)</option><option>Gemini (Google)</option><option>Mistral</option><option>Grok (xAI)</option><option>Ollama (Local)</option></select></div>
+          <div class="sr"><div class="s-l"><div class="sl">Langue de réponse</div></div><select class="sel"><option selected>Auto</option><option>Français</option><option>English</option><option>Español</option></select></div>
+          <div style="margin-top:6px">
+            <div class="pc"><div class="pch"><span class="pcn">Claude (Anthropic)</span><label class="tgl"><input type="checkbox" checked><span class="tgt"></span></label></div><div class="pcf"><div><div class="fl">Clé API (optionnel — sinon quota gratuit)</div><input class="si" type="password" placeholder="sk-ant-..."></div><div><div class="fl">Modèle</div><select class="sel" style="width:100%"><option>claude-sonnet-4-20250514</option><option>claude-opus-4-20250514</option><option>claude-haiku-4-20250514</option></select></div></div></div>
+            <div class="pc"><div class="pch"><span class="pcn">GPT (OpenAI)</span><label class="tgl"><input type="checkbox"><span class="tgt"></span></label></div><div class="pcf"><div><div class="fl">Clé API (optionnel)</div><input class="si" type="password" placeholder="sk-proj-..."></div><div><div class="fl">Modèle</div><select class="sel" style="width:100%"><option>gpt-4o</option><option>gpt-4o-mini</option></select></div></div></div>
+            <div class="pc"><div class="pch"><span class="pcn">Gemini (Google)</span><label class="tgl"><input type="checkbox"><span class="tgt"></span></label></div><div class="pcf"><div><div class="fl">Clé API (optionnel)</div><input class="si" type="password" placeholder="AIza..."></div><div><div class="fl">Modèle</div><select class="sel" style="width:100%"><option>gemini-2.0-flash</option><option>gemini-2.5-pro</option></select></div></div></div>
+            <div class="pc"><div class="pch"><span class="pcn">Mistral</span><label class="tgl"><input type="checkbox"><span class="tgt"></span></label></div><div class="pcf"><div><div class="fl">Clé API (optionnel)</div><input class="si" type="password" placeholder="Clé API Mistral"></div><div><div class="fl">Modèle</div><select class="sel" style="width:100%"><option>mistral-large-latest</option><option>pixtral-large-latest</option><option>codestral-latest</option></select></div></div></div>
+            <div class="pc"><div class="pch"><span class="pcn">Grok (xAI)</span><label class="tgl"><input type="checkbox"><span class="tgt"></span></label></div><div class="pcf"><div><div class="fl">Clé API (optionnel)</div><input class="si" type="password" placeholder="xai-..."></div><div><div class="fl">Modèle</div><select class="sel" style="width:100%"><option>grok-2-vision-1220</option><option>grok-2-1212</option><option>grok-3</option><option>grok-3-mini</option></select></div></div></div>
+            <div class="pc"><div class="pch"><span class="pcn">Ollama (Local)</span><label class="tgl"><input type="checkbox"><span class="tgt"></span></label></div><div class="pcf"><div><div class="fl">URL</div><input class="si" type="text" value="http://localhost:11434"></div><div><div class="fl">Modèle</div><input class="si" type="text" value="llava" placeholder="llava, llama3.2-vision..."></div></div></div>
+          </div>
+        </div>
+        <div class="ss"><div class="sst">Prompt système</div><div class="sd" style="margin-bottom:6px">Comportement par défaut de l'IA. Les instructions projet sont prioritaires.</div><textarea class="pta">Tu es un assistant visuel. L'utilisateur te partage des captures d'écran annotées. Analyse l'image et les annotations pour comprendre ce que l'utilisateur te montre. Réponds de manière claire et actionnable.</textarea></div>
+        <div class="ss"><div class="sst">Raccourcis</div>
+          <div class="sr"><div class="s-l"><div class="sl">Capture plein écran</div></div><div style="display:flex;gap:3px"><span class="kbd">Alt</span><span class="kbd">Shift</span><span class="kbd">S</span></div></div>
+          <div class="sr"><div class="s-l"><div class="sl">Capture zone</div></div><div style="display:flex;gap:3px"><span class="kbd">Alt</span><span class="kbd">Shift</span><span class="kbd">A</span></div></div>
+        </div>
+        <div class="ss"><div class="sst">Fonctionnalités</div>
+          <div class="sr"><div class="s-l"><div class="sl">Injection dans les sites IA<span class="beta">BETA</span></div><div class="sd">Envoie la capture dans vos conversations claude.ai, chatgpt.com…</div><div class="betaw">⚠ Expérimental — peut cesser de fonctionner si le site change</div></div><label class="tgl"><input type="checkbox"><span class="tgt"></span></label></div>
+        </div>
+        <button class="bsv" onclick="this.textContent='✓ Sauvegardé';setTimeout(()=>this.textContent='Sauvegarder',1200)">Sauvegarder</button>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- CAPTURE OVERLAY -->
+<div class="cap-ov" id="capOv">
+  <div class="cap-layout">
+    <!-- Toolbar vertical gauche -->
+    <div class="cap-tb">
+      <div class="cap-brand"><div class="sb-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">S</div></div>
+      <div class="cap-tools">
+        <button class="ct active" onclick="selT(this)" title="Sélection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg></button>
+        <button class="ct" onclick="selT(this)" title="Flèche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+        <button class="ct" onclick="selT(this)" title="Rectangle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
+        <button class="ct" onclick="selT(this)" title="Surlignage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="1" opacity="0.35" fill="currentColor" stroke="none"/></svg></button>
+        <button class="ct" onclick="selT(this)" title="Dessin libre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17c3-3 5-10 8-10s3 4 5 4 3-2 5-2"/></svg></button>
+        <button class="ct" onclick="selT(this)" title="Texte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></button>
+      </div>
+      <div class="ct-sep"></div>
+      <div class="cap-colors">
+        <button class="cc active" style="background:#ef4444" onclick="selCo(this)"></button>
+        <button class="cc" style="background:#f59e0b" onclick="selCo(this)"></button>
+        <button class="cc" style="background:#10b981" onclick="selCo(this)"></button>
+        <button class="cc" style="background:#7c3aed" onclick="selCo(this)"></button>
+        <button class="cc" style="background:#a855f7" onclick="selCo(this)"></button>
+        <button class="cc" style="background:#ffffff;border-color:var(--bd)" onclick="selCo(this)"></button>
+      </div>
+      <div class="ct-sep"></div>
+      <button class="ct" title="Annuler (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10h10a5 5 0 015 5v2M3 10l5-5M3 10l5 5"/></svg></button>
+      <button class="ct" title="Effacer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+      <div style="flex:1"></div>
+      <button class="ct ct-close" onclick="closeCap()" title="Fermer (Échap)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+
+    <!-- Zone canvas (faux screenshot) -->
+    <div class="cap-canvas">
+      <div class="cap-screenshot">
+        <div class="cap-browser"><div class="cap-dots"><span class="cdot cr"></span><span class="cdot cy"></span><span class="cdot cg"></span></div><div class="cap-url">localhost:3000/dashboard</div></div>
+        <div class="cap-page">
+          <h3 style="font-size:15px;margin-bottom:12px;color:var(--t1)">Dashboard — User Analytics</h3>
+          <div class="cap-code"><span class="kcm">// fetch user data</span><br><span class="kkw">const</span> <span class="kfn">fetchUsers</span> = <span class="kkw">async</span> () =&gt; {<br>&nbsp;&nbsp;<span class="kkw">const</span> res = <span class="kkw">await</span> <span class="kfn">fetch</span>(<span class="kstr">'/api/users'</span>);<br>&nbsp;&nbsp;<span class="kkw">const</span> data = <span class="kkw">await</span> res.<span class="kfn">json</span>();<br>&nbsp;&nbsp;<span class="kkw">return</span> data.<span class="kerr">users.map(u =&gt; u.name</span>);<br>&nbsp;&nbsp;<span class="kcm">// TypeError: Cannot read property 'map'</span><br>}</div>
+          <!-- Fake annotations -->
+          <div class="ann-hl" style="position:absolute;top:130px;left:30px;width:210px;height:20px;background:rgba(245,158,11,0.2);border-radius:2px"></div>
+          <div class="ann-rect" style="position:absolute;top:160px;left:30px;width:270px;height:22px;border:2px solid #ef4444;border-radius:2px"></div>
+          <div class="ann-arr" style="position:absolute;top:155px;right:40px;width:110px;height:2px;background:#ef4444;transform:rotate(-18deg);transform-origin:right center"><div style="position:absolute;right:-1px;top:-5px;border-left:10px solid #ef4444;border-top:5px solid transparent;border-bottom:5px solid transparent"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini chat à droite -->
+    <div class="cap-chat">
+      <div class="cap-ch-head">
+        <h4 style="font-size:13px;font-weight:600">Chat</h4>
+        <span class="badge" style="margin:0;font-size:9px">Claude · Sonnet 4</span>
+      </div>
+      <div class="cap-msgs">
+        <div class="msg mu" style="font-size:12px;padding:10px 12px;max-width:90%">Pourquoi cette erreur TypeError sur le .map() ?</div>
+        <div class="msg ma" style="font-size:12px;padding:10px 12px;max-width:90%"><p>L'erreur <code>Cannot read property 'map' of undefined</code> vient du fait que <strong>data.users</strong> n'existe pas.</p><p>L'API retourne probablement un tableau direct :</p><div class="mcode" style="font-size:11px;padding:8px 10px">return data.map(u =&gt; u.name);</div></div>
+      </div>
+      <div class="cap-input">
+        <div style="display:flex;gap:6px;align-items:flex-end">
+          <textarea class="itxt" style="font-size:12px;padding:8px 10px" placeholder="Décris ton problème..." rows="2"></textarea>
+          <button class="it primary" style="width:34px;height:34px"><svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+        </div>
+        <div class="imeta" style="font-size:10px;margin-top:6px"><span class="chip">Capture jointe</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.cap-ov{position:fixed;inset:0;z-index:500;background:var(--bg);display:none;opacity:0;transition:opacity .2s}
+.cap-ov.open{display:block;opacity:1}
+.cap-layout{display:flex;height:100vh}
+.cap-tb{width:52px;min-width:52px;background:var(--bg2);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:2px}
+.ct{width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:8px;cursor:pointer;color:var(--t2);transition:all .12s}
+.ct:hover{background:var(--bg3);color:var(--t1)}
+.ct.active{background:var(--ac-bg);color:var(--ac)}
+.ct svg{width:18px;height:18px}
+.ct-sep{width:24px;height:1px;background:var(--bd);margin:6px 0}
+.cap-colors{display:flex;flex-direction:column;align-items:center;gap:4px}
+.cc{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .12s}
+.cc:hover{transform:scale(1.15)}
+.cc.active{border-color:var(--t1);box-shadow:0 0 0 2px var(--bg2)}
+.ct-close{color:var(--t3)}.ct-close:hover{color:var(--red);background:var(--redbg)}
+
+.cap-canvas{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg3);min-width:0;padding:24px}
+.cap-screenshot{width:90%;max-width:900px;background:var(--bg2);border-radius:var(--rl);border:1px solid var(--bd);box-shadow:var(--sh-l);overflow:hidden}
+.cap-browser{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--bds)}
+.cap-dots{display:flex;gap:5px}
+.cdot{width:10px;height:10px;border-radius:50%;display:block}
+.cr{background:#ec6a5e}.cy{background:#f4bf4f}.cg{background:#61c554}
+.cap-url{flex:1;background:var(--bg);padding:5px 12px;border-radius:6px;font-size:11px;color:var(--t3);font-family:var(--fm);border:1px solid var(--bds)}
+.cap-page{padding:20px;position:relative;min-height:220px}
+.cap-code{background:var(--bg);border:1px solid var(--bds);border-radius:8px;padding:14px;font-family:var(--fm);font-size:11.5px;line-height:1.7}
+.kkw{color:#c792ea}.kfn{color:#7c3aed}.kstr{color:#10b981}.kerr{color:#ef4444;text-decoration:wavy underline #ef444466;text-underline-offset:3px}.kcm{color:#9ca3af;font-style:italic}
+
+.cap-chat{width:340px;min-width:340px;display:flex;flex-direction:column;background:var(--bg2);border-left:1px solid var(--bd)}
+.cap-ch-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--bds)}
+.cap-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.cap-input{padding:10px 12px;border-top:1px solid var(--bds)}
+</style>
+
+<div class="mov" id="modal"><div class="mod" id="mc"></div></div>
+<div class="ctx" id="ctx"><button class="ctx-i" onclick="clC()">Renommer</button><button class="ctx-i" onclick="clC()">Déplacer vers un projet</button><button class="ctx-i dng" onclick="clC()">Supprimer</button></div>
+
+<script>
+// Capture overlay
+function openCap(){document.getElementById('capOv').classList.add('open')}
+function closeCap(){document.getElementById('capOv').classList.remove('open')}
+function selT(btn){document.querySelectorAll('.ct').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
+function selCo(btn){document.querySelectorAll('.cc').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeCap()})
+
+function toggleS(){document.getElementById('so').classList.toggle('op')}
+function setTh(t,b){document.querySelectorAll('.th-o').forEach(x=>x.classList.remove('on'));b.classList.add('on');t==='dark'?document.getElementById('app').classList.add('dark'):document.getElementById('app').classList.remove('dark')}
+function setAc(c,b){document.querySelectorAll('.ac-o').forEach(x=>x.classList.remove('on'));b.classList.add('on');const r=document.documentElement.style;r.setProperty('--ac',c);r.setProperty('--acl',c);r.setProperty('--acbg',c+'0f');r.setProperty('--acbg2',c+'1f');r.setProperty('--acsh',c+'40')}
+function openM(t){const m=document.getElementById('modal'),c=document.getElementById('mc');m.classList.add('op');
+if(t==='proj'||t==='editProj'){c.innerHTML=`<h3>${t==='editProj'?'Modifier':'Nouveau'} projet</h3><div class="mf"><label>Nom</label><input class="minp" value="${t==='editProj'?'ScreenAI':''}"></div><div class="mf"><label>Description</label><input class="minp" value="${t==='editProj'?'Extension Chrome + app desktop d\'assistant visuel IA universel':''}"></div><div class="mf"><label>Instructions pour l'IA</label><textarea class="mta">${t==='editProj'?'Tu es un expert React, TypeScript et Tauri. Réponds avec du code concret.':''}</textarea></div><div class="mf"><label>IA par défaut</label><select class="msel"><option selected>Claude (Anthropic)</option><option>GPT (OpenAI)</option><option>Gemini (Google)</option><option>Mistral</option><option>Grok (xAI)</option><option>Ollama</option></select></div><div class="mact"><button class="mb mbc" onclick="clM()">Annuler</button><button class="mb mbp" onclick="clM()">${t==='editProj'?'Sauvegarder':'Créer'}</button></div>`}
+else if(t==='conv'){c.innerHTML=`<h3>Nouvelle discussion</h3><div class="mf"><label>Titre (optionnel)</label><input class="minp" placeholder="Nommée automatiquement d'après votre premier message"></div><div class="mf"><label>Rattacher à un projet</label><select class="msel"><option>Aucun (discussion autonome)</option><option>ScreenAI</option><option>Bot Trading Hyperliquid</option></select></div><div class="mf"><label>IA</label><select class="msel"><option selected>Claude · Sonnet 4</option><option>Claude · Opus 4</option><option>GPT-4o</option><option>Gemini 2.0 Flash</option><option>Mistral Large</option><option>Grok 2 Vision</option><option>Ollama · llava</option></select></div><div class="mact"><button class="mb mbc" onclick="clM()">Annuler</button><button class="mb mbp" onclick="clM()">Créer</button></div>`}
+else if(t==='rename'){c.innerHTML=`<h3>Renommer</h3><div class="mf"><label>Titre</label><input class="minp" value="Bug TypeError dashboard"></div><div class="mact"><button class="mb mbc" onclick="clM()">Annuler</button><button class="mb mbp" onclick="clM()">Sauvegarder</button></div>`}}
+function clM(){document.getElementById('modal').classList.remove('op')}
+function showC(e){e.preventDefault();const c=document.getElementById('ctx');c.style.left=e.clientX+'px';c.style.top=e.clientY+'px';c.classList.add('op');setTimeout(()=>document.addEventListener('click',clC,{once:true}),10)}
+function clC(){document.getElementById('ctx').classList.remove('op')}
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)clM()})
+</script>
+</body>
+</html>

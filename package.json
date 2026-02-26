@@ -1,0 +1,28 @@
+{
+  "name": "screenai",
+  "version": "1.1.0",
+  "description": "Universal AI Screen Assistant — Capture, Annotate, Ask Any AI",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "tsc && vite build && node scripts/post-build.js",
+    "build:firefox": "BROWSER=firefox npm run build",
+    "preview": "vite preview",
+    "dev:desktop-frontend": "vite --config vite.desktop.config.ts --port 5174",
+    "build:desktop-frontend": "vite build --config vite.desktop.config.ts --outDir dist-desktop"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "sharp": "^0.34.5",
+    "typescript": "^5.4.0",
+    "vite": "^5.4.0"
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": "ScreenAI",
+  "homepage": "https://getscreenai.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nono81/ScreenAI"
+  }
+}
