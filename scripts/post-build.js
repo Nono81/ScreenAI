@@ -87,7 +87,7 @@ if (isFirefox) {
     name: manifest.name,
     version: manifest.version,
     description: manifest.description,
-    permissions: [...manifest.permissions, '<all_urls>'],
+    permissions: [...manifest.permissions.filter(p => p !== 'commands'), '<all_urls>'],
     commands: manifest.commands,
     background: {
       scripts: ['background.js'],
@@ -117,6 +117,10 @@ if (isFirefox) {
       gecko: {
         id: 'screenai@screenai.app',
         strict_min_version: '109.0',
+        data_collection_permissions: {
+          techdata_collected: false,
+          interactiondata_collected: false,
+        },
       },
     },
   };
