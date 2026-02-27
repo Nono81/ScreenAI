@@ -120,6 +120,7 @@ if (isFirefox) {
         data_collection_permissions: {
           techdata_collected: false,
           interactiondata_collected: false,
+          required: false,
         },
       },
     },
