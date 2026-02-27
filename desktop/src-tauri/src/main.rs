@@ -178,9 +178,10 @@ fn main() {
                 })
                 .expect("Failed to register region shortcut");
 
-            // Start minimized to tray
+            // Show main window on startup
             if let Some(window) = app.get_window("main") {
-                let _ = window.hide();
+                let _ = window.show();
+                let _ = window.set_focus();
             }
 
             println!("🚀 ScreenAI running in system tray");

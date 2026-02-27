@@ -42,7 +42,7 @@
         "title": "ScreenAI",
         "width": 1200,
         "height": 800,
-        "visible": false,
+        "visible": true,
         "decorations": true,
         "transparent": false
       }
