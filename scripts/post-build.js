@@ -118,9 +118,8 @@ if (isFirefox) {
         id: 'screenai@screenai.app',
         strict_min_version: '109.0',
         data_collection_permissions: {
-          techdata_collected: false,
-          interactiondata_collected: false,
-          required: false,
+          required: ['none'],
+          optional: ['none'],
         },
       },
     },
