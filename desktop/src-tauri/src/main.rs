@@ -96,45 +96,22 @@ fn get_app_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
-// Check for updates from GitHub Releases
+// Check for updates — returns not available when updater is disabled
 #[tauri::command]
-async fn check_for_updates(app: AppHandle) -> Result<UpdateInfo, String> {
-    match app.updater().check().await {
-        Ok(update) => {
-            if update.is_update_available() {
-                Ok(UpdateInfo {
-                    available: true,
-                    version: update.latest_version().to_string(),
-                    body: update.body().unwrap_or(&String::new()).to_string(),
-                    date: update.date().map(|d| d.to_string()).unwrap_or_default(),
-                })
-            } else {
-                Ok(UpdateInfo {
-                    available: false,
-                    version: String::new(),
-                    body: String::new(),
-                    date: String::new(),
-                })
-            }
-        }
-        Err(e) => Err(e.to_string()),
-    }
+async fn check_for_updates(_app: AppHandle) -> Result<UpdateInfo, String> {
+    // Updater is currently disabled — signing keys not yet configured
+    Ok(UpdateInfo {
+        available: false,
+        version: String::new(),
+        body: String::new(),
+        date: String::new(),
+    })
 }
 
-// Download and install an update, then restart
+// Install update — no-op when updater is disabled
 #[tauri::command]
-async fn install_update(app: AppHandle) -> Result<(), String> {
-    match app.updater().check().await {
-        Ok(update) => {
-            if update.is_update_available() {
-                update.download_and_install().await.map_err(|e| e.to_string())?;
-                Ok(())
-            } else {
-                Err("No update available".to_string())
-            }
-        }
-        Err(e) => Err(e.to_string()),
-    }
+async fn install_update(_app: AppHandle) -> Result<(), String> {
+    Err("Updater is not configured yet".to_string())
 }
 
 fn create_overlay_window(app: &AppHandle, _mode: &str) {
@@ -238,28 +215,6 @@ fn main() {
                 let _ = window.show();
                 let _ = window.set_focus();
             }
-
-            // Auto-check for updates in background (after 5s delay)
-            let update_handle = handle.clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                match update_handle.updater().check().await {
-                    Ok(update) => {
-                        if update.is_update_available() {
-                            let info = UpdateInfo {
-                                available: true,
-                                version: update.latest_version().to_string(),
-                                body: update.body().unwrap_or(&String::new()).to_string(),
-                                date: update.date().map(|d| d.to_string()).unwrap_or_default(),
-                            };
-                            if let Some(window) = update_handle.get_window("main") {
-                                let _ = window.emit("update-available", &info);
-                            }
-                        }
-                    }
-                    Err(e) => eprintln!("Update check failed: {}", e),
-                }
-            });
 
             println!("🚀 ScreenAI running in system tray");
             println!("   Alt+Shift+S → Capture screen");

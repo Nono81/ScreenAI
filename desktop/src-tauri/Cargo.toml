@@ -10,9 +10,8 @@ edition = "2021"
 tauri-build = { version = "1", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = [ "path-all", "window-all", "global-shortcut-all", "dialog-all", "shell-open", "fs-all", "system-tray", "global-shortcut", "updater", "process-relaunch"] }
+tauri = { version = "1", features = [ "path-all", "window-all", "global-shortcut-all", "dialog-all", "shell-open", "fs-all", "system-tray", "global-shortcut", "process-relaunch"] }
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1", features = ["time"] }
 serde_json = "1"
 screenshots = "0.8"
 base64 = "0.22"
