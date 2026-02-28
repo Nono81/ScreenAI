@@ -280,9 +280,15 @@ export class ScreenAIApp {
     if ((window as any).__TAURI__) {
       const { invoke } = (window as any).__TAURI__;
       if (invoke) {
-        invoke('capture_screen').then((dataUrl: string) => {
-          this.mainView.attachScreenshot(dataUrl);
-        }).catch(console.error);
+        invoke('capture_screen').then((result: any) => {
+          // Result is a CapturePayload { data_url, width, height, mode }
+          const dataUrl = typeof result === 'string' ? result : result?.data_url;
+          if (dataUrl) {
+            this.mainView.attachScreenshot(dataUrl);
+          }
+        }).catch((err: any) => {
+          console.error('Capture failed:', err);
+        });
         return;
       }
     }
@@ -298,6 +304,11 @@ export class ScreenAIApp {
     }
 
     console.warn('Capture not available in this environment');
+  }
+
+  /** Called from desktop-main.ts when a global shortcut triggers a capture */
+  attachScreenshotFromShortcut(dataUrl: string) {
+    this.mainView.attachScreenshot(dataUrl);
   }
 
   // --- Theme ---

@@ -15,7 +15,7 @@ use serde::Serialize;
 use std::io::Cursor;
 use tauri::{
     AppHandle, GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent,
-    SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem, WindowBuilder, WindowUrl,
+    SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem,
 };
 
 #[derive(Clone, Serialize)]
@@ -44,7 +44,6 @@ fn capture_screen() -> Result<CapturePayload, String> {
     let width = image.width();
     let height = image.height();
 
-    // Convert to PNG bytes
     let mut buf = Cursor::new(Vec::new());
     image
         .write_to(&mut buf, ImageOutputFormat::Png)
@@ -99,7 +98,6 @@ fn get_app_version(app: AppHandle) -> String {
 // Check for updates — returns not available when updater is disabled
 #[tauri::command]
 async fn check_for_updates(_app: AppHandle) -> Result<UpdateInfo, String> {
-    // Updater is currently disabled — signing keys not yet configured
     Ok(UpdateInfo {
         available: false,
         version: String::new(),
@@ -114,47 +112,33 @@ async fn install_update(_app: AppHandle) -> Result<(), String> {
     Err("Updater is not configured yet".to_string())
 }
 
-fn create_overlay_window(app: &AppHandle, _mode: &str) {
-    // Hide main window, show overlay
-    if let Some(main_window) = app.get_window("main") {
-        let _ = main_window.hide();
-    }
+/// Capture screen via global shortcut and send result to the main window
+fn shortcut_capture(app: &AppHandle, mode: &str) {
+    let capture_result = if mode == "region" {
+        // For region, we still capture fullscreen for now
+        // (region selection will be done in the frontend)
+        capture_screen()
+    } else {
+        capture_screen()
+    };
 
-    // Small delay to let the window hide
-    std::thread::sleep(std::time::Duration::from_millis(200));
-
-    // Capture screen
-    match capture_screen() {
+    match capture_result {
         Ok(payload) => {
-            // Create or show the overlay window
-            if let Some(overlay) = app.get_window("overlay") {
-                let _ = overlay.show();
-                let _ = overlay.set_focus();
-                let _ = overlay.emit("capture", &payload);
-            } else {
-                let overlay = WindowBuilder::new(
-                    app,
-                    "overlay",
-                    WindowUrl::App("index.html".into()),
-                )
-                .title("ScreenAI — Capture")
-                .fullscreen(true)
-                .decorations(false)
-                .always_on_top(true)
-                .build();
-
-                if let Ok(window) = overlay {
-                    let payload_clone = payload.clone();
-                    // Wait for window to load, then send capture
-                    let win = window.clone();
-                    window.once("ready", move |_event: tauri::Event| {
-                        let _ = win.emit("capture", &payload_clone);
-                    });
-                }
+            // Show main window and bring to front
+            if let Some(window) = app.get_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                // Send capture to the frontend
+                let _ = window.emit("shortcut-capture", &payload);
             }
         }
         Err(e) => {
             eprintln!("Screen capture failed: {}", e);
+            // Still show the window even if capture fails
+            if let Some(window) = app.get_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
         }
     }
 }
@@ -175,8 +159,8 @@ fn main() {
         .on_system_tray_event(|app, event| {
             match event {
                 SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-                    "capture" => create_overlay_window(app, "fullscreen"),
-                    "capture_region" => create_overlay_window(app, "region"),
+                    "capture" => shortcut_capture(app, "fullscreen"),
+                    "capture_region" => shortcut_capture(app, "region"),
                     "show" => {
                         if let Some(window) = app.get_window("main") {
                             let _ = window.show();
@@ -187,7 +171,11 @@ fn main() {
                     _ => {}
                 },
                 SystemTrayEvent::LeftClick { .. } => {
-                    create_overlay_window(app, "fullscreen");
+                    // Left click on tray icon → show main window
+                    if let Some(window) = app.get_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
                 }
                 _ => {}
             }
@@ -199,14 +187,14 @@ fn main() {
             let handle_fs = handle.clone();
             app.global_shortcut_manager()
                 .register("Alt+Shift+S", move || {
-                    create_overlay_window(&handle_fs, "fullscreen");
+                    shortcut_capture(&handle_fs, "fullscreen");
                 })
                 .expect("Failed to register fullscreen shortcut");
 
             let handle_rg = handle.clone();
             app.global_shortcut_manager()
                 .register("Alt+Shift+A", move || {
-                    create_overlay_window(&handle_rg, "region");
+                    shortcut_capture(&handle_rg, "region");
                 })
                 .expect("Failed to register region shortcut");
 
