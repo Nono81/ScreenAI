@@ -116,6 +116,13 @@ export const MODEL_OPTIONS: Record<AIProviderType, string[]> = {
   ollama: ['llava', 'llama3.2-vision', 'bakllava'],
 };
 
+export interface ShortcutConfig {
+  captureFullscreen: string;
+  captureRegion: string;
+  highlight: string;
+  search: string;
+}
+
 export interface AppSettings {
   defaultProvider: AIProviderType;
   providers: Record<AIProviderType, AIProviderConfig>;
@@ -125,6 +132,7 @@ export interface AppSettings {
   accentColor: string;
   language: AppLanguage;
   systemPrompt: string;
+  shortcuts?: ShortcutConfig;
 }
 
 export const DEFAULT_SYSTEM_PROMPT = 'You are a visual assistant. The user shares annotated screenshots to get help. Analyze the image and annotations (arrows, highlights, rectangles) to understand precisely what the user is showing you. Respond clearly and actionably.';
@@ -145,6 +153,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   accentColor: '#7c3aed',
   language: 'en',
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
+  shortcuts: {
+    captureFullscreen: 'Alt+Shift+S',
+    captureRegion: 'Alt+Shift+A',
+    highlight: 'Alt+Shift+H',
+    search: 'Ctrl+K',
+  },
 };
 
 // --- Events ---

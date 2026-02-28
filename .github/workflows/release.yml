@@ -46,6 +46,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           projectPath: desktop
           tagName: v__VERSION__
@@ -65,4 +67,5 @@ jobs:
             Install from [Firefox Add-ons](#) or load temporarily from `dist-firefox/`.
           releaseDraft: true
           prerelease: false
+          updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}

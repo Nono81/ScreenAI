@@ -39,10 +39,12 @@ export interface Translations {
   light: string;
   dark: string;
   auto: string;
-  accentColor: string;
-  systemPrompt: string;
-  systemPromptDesc: string;
+  personalPreferences: string;
+  personalPreferencesDesc: string;
+  personalPreferencesPlaceholder: string;
   shortcuts: string;
+  editShortcut: string;
+  pressNewShortcut: string;
   captureFullscreen: string;
   captureZone: string;
   highlight: string;
@@ -88,6 +90,17 @@ export interface Translations {
   deleteConvMsg: (title: string) => string;
   disconnectConfirm: string;
 
+  // Update
+  version: string;
+  checkForUpdates: string;
+  updateAvailable: string;
+  updateAvailableDesc: (version: string) => string;
+  downloading: string;
+  installAndRestart: string;
+  updateError: string;
+  upToDate: string;
+  about: string;
+
   // Language prompts
   langPrompt: string;
 }
@@ -127,10 +140,12 @@ const en: Translations = {
   light: "Light",
   dark: "Dark",
   auto: "Auto",
-  accentColor: "Accent color",
-  systemPrompt: "System Prompt",
-  systemPromptDesc: "Customize the default AI behavior for all conversations.",
+  personalPreferences: "Personal Preferences",
+  personalPreferencesDesc: "Your preferences will apply to all conversations.",
+  personalPreferencesPlaceholder: "What personal preferences should Claude take into account in responses?",
   shortcuts: "Keyboard Shortcuts",
+  editShortcut: "Click to edit",
+  pressNewShortcut: "Press new shortcut...",
   captureFullscreen: "Fullscreen capture",
   captureZone: "Region capture",
   highlight: "Highlight",
@@ -177,6 +192,17 @@ const en: Translations = {
   deleteConvMsg: (title) => `Delete conversation "${title}"?`,
   disconnectConfirm: "Do you want to log out?",
 
+  // Update
+  version: "Version",
+  checkForUpdates: "Check for updates",
+  updateAvailable: "Update available",
+  updateAvailableDesc: (version) => `Version ${version} is available. Would you like to update?`,
+  downloading: "Downloading update...",
+  installAndRestart: "Install & Restart",
+  updateError: "Could not check for updates",
+  upToDate: "You're up to date!",
+  about: "About",
+
   // Language prompts
   langPrompt: "Always respond in English.",
 };
@@ -216,10 +242,12 @@ const fr: Translations = {
   light: "Clair",
   dark: "Sombre",
   auto: "Auto",
-  accentColor: "Couleur d'accent",
-  systemPrompt: "Prompt système",
-  systemPromptDesc: "Personnalise le comportement par défaut de l'IA pour toutes les conversations.",
+  personalPreferences: "Préférences personnelles",
+  personalPreferencesDesc: "Vos préférences s'appliqueront à toutes les conversations.",
+  personalPreferencesPlaceholder: "Quelles préférences personnelles Claude doit-il prendre en compte dans ses réponses ?",
   shortcuts: "Raccourcis clavier",
+  editShortcut: "Cliquer pour modifier",
+  pressNewShortcut: "Appuyez sur le nouveau raccourci...",
   captureFullscreen: "Capture plein écran",
   captureZone: "Capture zone",
   highlight: "Surligner",
@@ -265,6 +293,17 @@ const fr: Translations = {
   deleteProjectMsgSimple: (name) => `Supprimer le projet "${name}" ?`,
   deleteConvMsg: (title) => `Supprimer la conversation "${title}" ?`,
   disconnectConfirm: "Voulez-vous vous déconnecter ?",
+
+  // Update
+  version: "Version",
+  checkForUpdates: "Vérifier les mises à jour",
+  updateAvailable: "Mise à jour disponible",
+  updateAvailableDesc: (version) => `La version ${version} est disponible. Voulez-vous mettre à jour ?`,
+  downloading: "Téléchargement de la mise à jour...",
+  installAndRestart: "Installer et redémarrer",
+  updateError: "Impossible de vérifier les mises à jour",
+  upToDate: "Vous êtes à jour !",
+  about: "À propos",
 
   // Language prompts
   langPrompt: "Réponds toujours en français.",

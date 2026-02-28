@@ -18,7 +18,16 @@
       "fs": { "all": true, "scope": ["$APPDATA/**", "$HOME/**"] },
       "globalShortcut": { "all": true },
       "window": { "all": true },
-      "path": { "all": true }
+      "path": { "all": true },
+      "process": { "relaunch": true }
+    },
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/Nono81/ScreenAI/releases/latest/download/latest.json"
+      ]
     },
     "bundle": {
       "active": true,

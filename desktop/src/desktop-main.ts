@@ -52,7 +52,43 @@ async function init() {
     };
   });
 
+  // Listen for update availability from Rust backend
+  await event.listen('update-available', (e: any) => {
+    const info = e.payload;
+    showUpdateToast(info.version, info.body);
+  });
+
   console.log('ScreenAI Desktop ready');
+}
+
+function showUpdateToast(version: string, body: string) {
+  const toast = document.createElement('div');
+  toast.className = 'update-toast';
+  toast.innerHTML = `
+    <div class="update-toast-content">
+      <strong>ScreenAI ${version} is available</strong>
+      <p>${body ? body.slice(0, 100) : 'A new version is ready to install.'}</p>
+      <div class="update-toast-actions">
+        <button class="update-toast-btn primary" data-action="update-now">Install & Restart</button>
+        <button class="update-toast-btn" data-action="update-later">Later</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+
+  toast.querySelector('[data-action="update-now"]')?.addEventListener('click', async () => {
+    try {
+      if (invoke) await invoke('install_update');
+    } catch (err) {
+      console.error('Update install failed:', err);
+    }
+  });
+
+  toast.querySelector('[data-action="update-later"]')?.addEventListener('click', () => {
+    toast.remove();
+  });
+
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 30000);
 }
 
 init();

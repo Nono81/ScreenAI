@@ -16,6 +16,7 @@ import {
   showConfirmModal,
 } from './Modals';
 import { t, setUILanguage, type UILanguage } from './i18n';
+import { initVersion } from './version';
 import './styles.css';
 
 export class ScreenAIApp {
@@ -34,10 +35,12 @@ export class ScreenAIApp {
   }
 
   private async init() {
+    // Load version info
+    await initVersion();
+
     // Load settings and apply theme + language
     const settings = await settingsStore.get();
     this.applyTheme(settings.theme);
-    this.applyAccentColor(settings.accentColor);
     this.applyLanguage(settings.language);
 
     // Create components
@@ -65,7 +68,6 @@ export class ScreenAIApp {
 
     this.settingsPanel = new SettingsPanel(this.mainView.getSettingsContainer(), {
       onThemeChanged: (theme) => this.applyTheme(theme),
-      onAccentChanged: (color) => this.applyAccentColor(color),
       onLogout: () => this.handleLogout(),
       onLanguageChanged: () => this.rebuildUI(),
     });
@@ -307,24 +309,6 @@ export class ScreenAIApp {
     } else {
       document.body.classList.toggle('dark', theme === 'dark');
     }
-  }
-
-  private applyAccentColor(color: string) {
-    const root = document.documentElement;
-    root.style.setProperty('--ac', color);
-
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const b = parseInt(color.slice(5, 7), 16);
-
-    const lr = Math.min(255, r + 20);
-    const lg = Math.min(255, g + 20);
-    const lb = Math.min(255, b + 20);
-    root.style.setProperty('--acl', `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`);
-
-    root.style.setProperty('--acbg', `rgba(${r},${g},${b},0.06)`);
-    root.style.setProperty('--acbg2', `rgba(${r},${g},${b},0.12)`);
-    root.style.setProperty('--acsh', `rgba(${r},${g},${b},0.25)`);
   }
 
   // --- Auth ---

@@ -7,17 +7,13 @@ import { PROVIDER_LABELS, MODEL_OPTIONS, LANGUAGE_LABELS, type AppLanguage } fro
 import { settingsStore } from '../../storage';
 import { ICONS } from './icons';
 import { t, setUILanguage, type UILanguage } from './i18n';
+import { getVersion } from './version';
 
 export interface SettingsPanelEvents {
   onThemeChanged: (theme: string) => void;
-  onAccentChanged: (color: string) => void;
   onLogout: () => void;
   onLanguageChanged?: () => void;
 }
-
-const ACCENT_COLORS = [
-  '#7c3aed', '#6366f1', '#ef4444', '#f59e0b', '#10b981', '#06b6d4'
-];
 
 export class SettingsPanel {
   private el: HTMLElement;
@@ -58,6 +54,7 @@ export class SettingsPanel {
     if (!this.settings) return;
     const s = this.settings;
     const i = t();
+    const version = getVersion();
 
     this.el.innerHTML = `
       <div class="sod">
@@ -95,6 +92,13 @@ export class SettingsPanel {
             ${this.renderProviderCards(s)}
           </div>
 
+          <!-- Personal Preferences -->
+          <div class="ss">
+            <div class="sst">${i.personalPreferences}</div>
+            <div class="sd" style="margin-bottom:8px">${i.personalPreferencesDesc}</div>
+            <textarea class="pta" rows="3" data-setting="systemPrompt" placeholder="${i.personalPreferencesPlaceholder}">${this.escapeHtml(s.systemPrompt)}</textarea>
+          </div>
+
           <!-- Appearance -->
           <div class="ss">
             <div class="sst">${i.appearance}</div>
@@ -107,51 +111,12 @@ export class SettingsPanel {
                 <div class="th-o${s.theme === 'auto' ? ' on' : ''}" data-theme="auto">${i.auto}</div>
               </div>
             </div>
-
-            <div class="sr" style="flex-direction:column;gap:8px;align-items:flex-start">
-              <div class="sl">${i.accentColor}</div>
-              <div class="ac-row">
-                ${ACCENT_COLORS.map(c =>
-                  `<div class="ac-o${c === s.accentColor ? ' on' : ''}" style="background:${c}" data-accent="${c}"></div>`
-                ).join('')}
-              </div>
-            </div>
-          </div>
-
-          <!-- System Prompt -->
-          <div class="ss">
-            <div class="sst">${i.systemPrompt}</div>
-            <div class="sd">${i.systemPromptDesc}</div>
-            <textarea class="pta" rows="4" data-setting="systemPrompt">${this.escapeHtml(s.systemPrompt)}</textarea>
           </div>
 
           <!-- Shortcuts -->
           <div class="ss">
             <div class="sst">${i.shortcuts}</div>
-            <div class="sr">
-              <div class="s-l"><div class="sl">${i.captureFullscreen}</div></div>
-              <div class="kbd-combo">
-                <span class="kbd">Alt</span><span class="kbd">Shift</span><span class="kbd">S</span>
-              </div>
-            </div>
-            <div class="sr">
-              <div class="s-l"><div class="sl">${i.captureZone}</div></div>
-              <div class="kbd-combo">
-                <span class="kbd">Alt</span><span class="kbd">Shift</span><span class="kbd">A</span>
-              </div>
-            </div>
-            <div class="sr">
-              <div class="s-l"><div class="sl">${i.highlight}</div></div>
-              <div class="kbd-combo">
-                <span class="kbd">Alt</span><span class="kbd">Shift</span><span class="kbd">H</span>
-              </div>
-            </div>
-            <div class="sr">
-              <div class="s-l"><div class="sl">${i.search}</div></div>
-              <div class="kbd-combo">
-                <span class="kbd">Ctrl</span><span class="kbd">K</span>
-              </div>
-            </div>
+            ${this.renderShortcuts(s)}
           </div>
 
           <!-- Account -->
@@ -167,6 +132,24 @@ export class SettingsPanel {
               ${ICONS.logOut}
               ${i.logOut}
             </button>
+          </div>
+
+          <!-- About -->
+          <div class="ss">
+            <div class="sst">${i.about}</div>
+            <div class="sr">
+              <div class="s-l">
+                <div class="sl">${i.version}</div>
+                <div class="sd">v${version}</div>
+              </div>
+            </div>
+            <div class="sr" style="flex-direction:column;gap:8px;align-items:stretch">
+              <button class="upd-btn" data-action="check-update">
+                ${ICONS.download}
+                ${i.checkForUpdates}
+              </button>
+              <div class="upd-status" data-update-status style="display:none"></div>
+            </div>
           </div>
 
           <button class="bsv" data-action="save">${i.save}</button>
@@ -223,6 +206,32 @@ export class SettingsPanel {
     }).join('');
   }
 
+  private renderShortcuts(s: AppSettings): string {
+    const i = t();
+    const shortcuts = s.shortcuts || {
+      captureFullscreen: 'Alt+Shift+S',
+      captureRegion: 'Alt+Shift+A',
+      highlight: 'Alt+Shift+H',
+      search: 'Ctrl+K',
+    };
+
+    const items = [
+      { key: 'captureFullscreen', label: i.captureFullscreen, shortcut: shortcuts.captureFullscreen || 'Alt+Shift+S' },
+      { key: 'captureRegion', label: i.captureZone, shortcut: shortcuts.captureRegion || 'Alt+Shift+A' },
+      { key: 'highlight', label: i.highlight, shortcut: shortcuts.highlight || 'Alt+Shift+H' },
+      { key: 'search', label: i.search, shortcut: shortcuts.search || 'Ctrl+K' },
+    ];
+
+    return items.map(item => `
+      <div class="sr shortcut-row" data-shortcut-key="${item.key}">
+        <div class="s-l"><div class="sl">${item.label}</div></div>
+        <div class="kbd-combo kbd-editable" data-shortcut-edit="${item.key}" title="${i.editShortcut}">
+          ${item.shortcut.split('+').map(k => `<span class="kbd">${k}</span>`).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
   private getKeyPlaceholder(type: AIProviderType): string {
     const placeholders: Partial<Record<AIProviderType, string>> = {
       claude: 'sk-ant-...',
@@ -241,13 +250,10 @@ export class SettingsPanel {
     // Language change -> update UI language + re-render
     this.el.querySelector('[data-setting="language"]')?.addEventListener('change', (e) => {
       const lang = (e.target as HTMLSelectElement).value as AppLanguage;
-      // Map AppLanguage to UILanguage (auto -> en)
       const uiLang = (lang === 'auto' ? 'en' : lang) as UILanguage;
       setUILanguage(uiLang);
       if (this.settings) this.settings.language = lang;
-      // Re-render settings panel
       this.render();
-      // Notify parent to re-render the whole UI
       this.events.onLanguageChanged?.();
     });
 
@@ -259,17 +265,6 @@ export class SettingsPanel {
         el.classList.add('on');
         if (this.settings) this.settings.theme = theme as any;
         this.events.onThemeChanged(theme);
-      });
-    });
-
-    // Accent colors
-    this.el.querySelectorAll('[data-accent]').forEach(el => {
-      el.addEventListener('click', () => {
-        const color = (el as HTMLElement).dataset.accent!;
-        this.el.querySelectorAll('.ac-o').forEach(a => a.classList.remove('on'));
-        el.classList.add('on');
-        if (this.settings) this.settings.accentColor = color;
-        this.events.onAccentChanged(color);
       });
     });
 
@@ -293,6 +288,134 @@ export class SettingsPanel {
     this.el.querySelector('[data-action="logout"]')?.addEventListener('click', () => {
       this.events.onLogout();
     });
+
+    // Check for updates
+    this.el.querySelector('[data-action="check-update"]')?.addEventListener('click', () => this.checkForUpdates());
+
+    // Editable shortcuts
+    this.el.querySelectorAll('[data-shortcut-edit]').forEach(el => {
+      el.addEventListener('click', () => this.startEditingShortcut(el as HTMLElement));
+    });
+  }
+
+  private startEditingShortcut(el: HTMLElement) {
+    const i = t();
+    const key = el.dataset.shortcutEdit!;
+    el.innerHTML = `<span class="kbd kbd-recording">${i.pressNewShortcut}</span>`;
+
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Ignore modifier-only presses
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+      const parts: string[] = [];
+      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+
+      const shortcut = parts.join('+');
+
+      // Update settings
+      if (this.settings) {
+        if (!this.settings.shortcuts) {
+          this.settings.shortcuts = {
+            captureFullscreen: 'Alt+Shift+S',
+            captureRegion: 'Alt+Shift+A',
+            highlight: 'Alt+Shift+H',
+            search: 'Ctrl+K',
+          };
+        }
+        (this.settings.shortcuts as any)[key] = shortcut;
+      }
+
+      // Update display
+      el.innerHTML = shortcut.split('+').map(k => `<span class="kbd">${k}</span>`).join('');
+      document.removeEventListener('keydown', handler, true);
+    };
+
+    document.addEventListener('keydown', handler, true);
+  }
+
+  private async checkForUpdates() {
+    const i = t();
+    const statusEl = this.el.querySelector('[data-update-status]') as HTMLElement;
+    const btnEl = this.el.querySelector('[data-action="check-update"]') as HTMLButtonElement;
+
+    const isTauri = !!(window as any).__TAURI__;
+    const isExtension = typeof chrome !== 'undefined' && !!chrome.runtime?.id;
+
+    if (isExtension) {
+      const isFirefox = navigator.userAgent.includes('Firefox');
+      const storeUrl = isFirefox
+        ? 'https://addons.mozilla.org/firefox/addon/screenai/'
+        : 'https://chrome.google.com/webstore/detail/screenai/';
+      window.open(storeUrl, '_blank');
+      return;
+    }
+
+    if (!isTauri) {
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = `<span class="upd-ok">${i.upToDate}</span>`;
+        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      }
+      return;
+    }
+
+    // Show checking state
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `<span class="upd-checking">${i.checkForUpdates}...</span>`;
+    }
+    if (btnEl) btnEl.disabled = true;
+
+    try {
+      const result = await (window as any).__TAURI__.invoke('check_for_updates');
+      if (result.available) {
+        if (statusEl) {
+          statusEl.innerHTML = `
+            <div class="upd-avail">
+              <div class="upd-avail-text">${i.updateAvailableDesc(result.version)}</div>
+              <button class="upd-install-btn" data-action="install-update">
+                ${ICONS.download}
+                ${i.installAndRestart}
+              </button>
+            </div>
+          `;
+          statusEl.querySelector('[data-action="install-update"]')?.addEventListener('click', () => this.installUpdate());
+        }
+      } else {
+        if (statusEl) {
+          statusEl.innerHTML = `<span class="upd-ok">${i.upToDate}</span>`;
+          setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+        }
+      }
+    } catch {
+      if (statusEl) {
+        statusEl.innerHTML = `<span class="upd-err">${i.updateError}</span>`;
+      }
+    } finally {
+      if (btnEl) btnEl.disabled = false;
+    }
+  }
+
+  private async installUpdate() {
+    const i = t();
+    const statusEl = this.el.querySelector('[data-update-status]') as HTMLElement;
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="upd-checking">${i.downloading}</span>`;
+    }
+
+    try {
+      await (window as any).__TAURI__.invoke('install_update');
+    } catch {
+      if (statusEl) {
+        statusEl.innerHTML = `<span class="upd-err">${i.updateError}</span>`;
+      }
+    }
   }
 
   private async save() {

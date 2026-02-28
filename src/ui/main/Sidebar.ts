@@ -7,6 +7,7 @@ import { ICONS } from './icons';
 import { SearchEngine } from './SearchEngine';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { t } from './i18n';
+import { getVersion } from './version';
 
 export interface SidebarEvents {
   onSelectProject: (projectId: string) => void;
@@ -66,7 +67,7 @@ export class Sidebar {
         <div class="sb-brand">
           <div class="logo">${ICONS.logo}</div>
           <span class="sb-name">ScreenAI</span>
-          <span class="ver">v1.2</span>
+          <span class="ver">v${getVersion()}</span>
         </div>
         <button class="bcap" data-action="capture">
           ${ICONS.camera}
