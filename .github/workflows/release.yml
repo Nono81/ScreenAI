@@ -3,12 +3,75 @@ name: Release Desktop
 on:
   push:
     tags: ['v*']
+  schedule:
+    # Nightly build at midnight (UTC) — only builds if there are new commits
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    # Manual trigger from GitHub Actions UI
 
 permissions:
   contents: write
 
 jobs:
+  # Check if there are new commits since last release (for nightly only)
+  check-changes:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for new commits since last release
+        id: check
+        run: |
+          LAST_RELEASE_SHA=$(gh release view --json targetCommitish -q .targetCommitish 2>/dev/null || echo "")
+          if [ -z "$LAST_RELEASE_SHA" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          elif [ "$LAST_RELEASE_SHA" != "$(git rev-parse HEAD)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Bump version for nightly/manual builds
+  prepare:
+    needs: [check-changes]
+    if: always() && (github.event_name != 'schedule' || needs.check-changes.outputs.has_changes == 'true')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tag push — use the tag version
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
+          else
+            # Nightly or manual — auto-increment patch from tauri.conf.json
+            CURRENT=$(jq -r '.package.version' desktop/src-tauri/tauri.conf.json)
+            MAJOR=$(echo $CURRENT | cut -d. -f1)
+            MINOR=$(echo $CURRENT | cut -d. -f2)
+            PATCH=$(echo $CURRENT | cut -d. -f3)
+            VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            TAG="v${VERSION}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION (tag: $TAG)"
+
   build:
+    needs: [prepare]
+    if: always() && needs.prepare.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -43,6 +106,14 @@ jobs:
 
       - run: npm install
 
+      # Update version in tauri.conf.json for nightly/manual builds
+      - name: Set version
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          jq --arg v "$VERSION" '.package.version = $v' desktop/src-tauri/tauri.conf.json > tmp.json && mv tmp.json desktop/src-tauri/tauri.conf.json
+        shell: bash
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -50,10 +121,10 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           projectPath: desktop
-          tagName: v__VERSION__
-          releaseName: 'ScreenAI v__VERSION__'
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseName: 'ScreenAI ${{ needs.prepare.outputs.tag }}'
           releaseBody: |
-            ## ScreenAI v__VERSION__
+            ## ScreenAI ${{ needs.prepare.outputs.tag }}
 
             ### Downloads
             - **macOS**: `.dmg` (Universal — Apple Silicon + Intel)
@@ -65,7 +136,7 @@ jobs:
 
             ### Firefox Add-on
             Install from [Firefox Add-ons](#) or load temporarily from `dist-firefox/`.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
