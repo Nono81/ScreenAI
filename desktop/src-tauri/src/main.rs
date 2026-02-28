@@ -9,10 +9,8 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use screenshots::image::ImageOutputFormat;
-use screenshots::Screen;
 use serde::Serialize;
-use std::io::Cursor;
+use std::process::Command;
 use tauri::{
     AppHandle, GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent,
     SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem,
@@ -21,8 +19,6 @@ use tauri::{
 #[derive(Clone, Serialize)]
 struct CapturePayload {
     data_url: String,
-    width: u32,
-    height: u32,
     mode: String,
 }
 
@@ -34,59 +30,87 @@ struct UpdateInfo {
     date: String,
 }
 
-// Capture the primary screen and return as base64 PNG
-#[tauri::command]
-fn capture_screen() -> Result<CapturePayload, String> {
-    let screens = Screen::all().map_err(|e| e.to_string())?;
-    let screen = screens.first().ok_or("No screen found")?;
+/// Capture the screen using the native OS tool.
+/// macOS: uses `screencapture` CLI (reliable, handles permissions natively)
+/// Windows/Linux: uses the `screenshots` crate as fallback
+fn native_capture(mode: &str) -> Result<CapturePayload, String> {
+    let tmp_path = std::env::temp_dir().join("screenai_capture.png");
+    let tmp_str = tmp_path.to_str().ok_or("Invalid temp path")?;
 
-    let image = screen.capture().map_err(|e| e.to_string())?;
-    let width = image.width();
-    let height = image.height();
+    #[cfg(target_os = "macos")]
+    {
+        // -x = no sound, -C = capture cursor, -t png = format
+        // -i = interactive selection (for region mode)
+        let args = if mode == "region" {
+            vec!["-x", "-i", "-t", "png", tmp_str]
+        } else {
+            vec!["-x", "-t", "png", tmp_str]
+        };
 
-    let mut buf = Cursor::new(Vec::new());
-    image
-        .write_to(&mut buf, ImageOutputFormat::Png)
-        .map_err(|e| e.to_string())?;
+        let output = Command::new("screencapture")
+            .args(&args)
+            .output()
+            .map_err(|e| format!("Failed to run screencapture: {}", e))?;
 
-    let base64_data = BASE64.encode(buf.into_inner());
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("screencapture failed: {}", stderr));
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        // Fallback for Windows/Linux using screenshots crate
+        use screenshots::Screen;
+        use screenshots::image::ImageOutputFormat;
+        use std::io::Cursor;
+
+        let screens = Screen::all().map_err(|e| e.to_string())?;
+        let screen = screens.first().ok_or("No screen found")?;
+        let image = screen.capture().map_err(|e| e.to_string())?;
+
+        let mut buf = Cursor::new(Vec::new());
+        image.write_to(&mut buf, ImageOutputFormat::Png)
+            .map_err(|e| e.to_string())?;
+
+        std::fs::write(&tmp_path, buf.into_inner())
+            .map_err(|e| format!("Failed to write temp file: {}", e))?;
+    }
+
+    // Read the PNG file and convert to base64 data URL
+    if !tmp_path.exists() {
+        return Err("Capture was cancelled or failed".to_string());
+    }
+
+    let png_bytes = std::fs::read(&tmp_path)
+        .map_err(|e| format!("Failed to read capture: {}", e))?;
+
+    // Clean up temp file
+    let _ = std::fs::remove_file(&tmp_path);
+
+    if png_bytes.is_empty() {
+        return Err("Capture produced empty file".to_string());
+    }
+
+    let base64_data = BASE64.encode(&png_bytes);
     let data_url = format!("data:image/png;base64,{}", base64_data);
 
     Ok(CapturePayload {
         data_url,
-        width,
-        height,
-        mode: "fullscreen".to_string(),
+        mode: mode.to_string(),
     })
 }
 
-// Capture a specific region
+// Capture the primary screen
 #[tauri::command]
-fn capture_region(x: i32, y: i32, w: u32, h: u32) -> Result<CapturePayload, String> {
-    let screens = Screen::all().map_err(|e| e.to_string())?;
-    let screen = screens.first().ok_or("No screen found")?;
+fn capture_screen() -> Result<CapturePayload, String> {
+    native_capture("fullscreen")
+}
 
-    let image = screen
-        .capture_area(x, y, w, h)
-        .map_err(|e| e.to_string())?;
-
-    let width = image.width();
-    let height = image.height();
-
-    let mut buf = Cursor::new(Vec::new());
-    image
-        .write_to(&mut buf, ImageOutputFormat::Png)
-        .map_err(|e| e.to_string())?;
-
-    let base64_data = BASE64.encode(buf.into_inner());
-    let data_url = format!("data:image/png;base64,{}", base64_data);
-
-    Ok(CapturePayload {
-        data_url,
-        width,
-        height,
-        mode: "region".to_string(),
-    })
+// Capture a region (interactive selection on macOS)
+#[tauri::command]
+fn capture_region() -> Result<CapturePayload, String> {
+    native_capture("region")
 }
 
 // Return app version from tauri.conf.json
@@ -114,37 +138,27 @@ async fn install_update(_app: AppHandle) -> Result<(), String> {
 
 /// Capture screen via global shortcut and send result to the main window
 fn shortcut_capture(app: &AppHandle, mode: &str) {
-    let capture_result = if mode == "region" {
-        // For region, we still capture fullscreen for now
-        // (region selection will be done in the frontend)
-        capture_screen()
-    } else {
-        capture_screen()
-    };
-
-    match capture_result {
+    match native_capture(mode) {
         Ok(payload) => {
-            // Show main window and bring to front
             if let Some(window) = app.get_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
-                // Send capture to the frontend
                 let _ = window.emit("shortcut-capture", &payload);
             }
         }
         Err(e) => {
             eprintln!("Screen capture failed: {}", e);
-            // Still show the window even if capture fails
             if let Some(window) = app.get_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
+                // Notify frontend of the error
+                let _ = window.emit("capture-error", &e);
             }
         }
     }
 }
 
 fn main() {
-    // System tray menu
     let tray_menu = SystemTrayMenu::new()
         .add_item(CustomMenuItem::new("capture", "📸 Capture (Alt+Shift+S)"))
         .add_item(CustomMenuItem::new("capture_region", "✂️ Region (Alt+Shift+A)"))
@@ -171,7 +185,6 @@ fn main() {
                     _ => {}
                 },
                 SystemTrayEvent::LeftClick { .. } => {
-                    // Left click on tray icon → show main window
                     if let Some(window) = app.get_window("main") {
                         let _ = window.show();
                         let _ = window.set_focus();
@@ -183,7 +196,6 @@ fn main() {
         .setup(|app| {
             let handle = app.handle();
 
-            // Register global shortcuts
             let handle_fs = handle.clone();
             app.global_shortcut_manager()
                 .register("Alt+Shift+S", move || {
@@ -198,7 +210,6 @@ fn main() {
                 })
                 .expect("Failed to register region shortcut");
 
-            // Show main window on startup
             if let Some(window) = app.get_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();

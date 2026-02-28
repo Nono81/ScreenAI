@@ -280,8 +280,8 @@ export class ScreenAIApp {
     if ((window as any).__TAURI__) {
       const { invoke } = (window as any).__TAURI__;
       if (invoke) {
-        invoke('capture_screen').then((result: any) => {
-          // Result is a CapturePayload { data_url, width, height, mode }
+        const cmd = mode === 'region' ? 'capture_region' : 'capture_screen';
+        invoke(cmd).then((result: any) => {
           const dataUrl = typeof result === 'string' ? result : result?.data_url;
           if (dataUrl) {
             this.mainView.attachScreenshot(dataUrl);
