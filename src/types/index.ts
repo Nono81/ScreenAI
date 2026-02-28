@@ -82,23 +82,29 @@ export interface Project {
 }
 
 // --- Settings ---
-export type AppLanguage = 'auto' | 'fr' | 'en' | 'es' | 'de';
+export type AppLanguage = 'auto' | 'en' | 'fr' | 'es' | 'de' | 'zh' | 'ja' | 'ko';
 export type AppTheme = 'dark' | 'light' | 'auto';
 
 export const LANGUAGE_LABELS: Record<AppLanguage, string> = {
   auto: 'Auto (detect)',
-  fr: 'Français',
   en: 'English',
+  fr: 'Français',
   es: 'Español',
   de: 'Deutsch',
+  zh: '中文',
+  ja: '日本語',
+  ko: '한국어',
 };
 
 export const LANGUAGE_PROMPTS: Record<AppLanguage, string> = {
   auto: 'Respond in the user\'s language.',
-  fr: 'Réponds toujours en français.',
   en: 'Always respond in English.',
+  fr: 'Réponds toujours en français.',
   es: 'Responde siempre en español.',
   de: 'Antworte immer auf Deutsch.',
+  zh: '请始终用中文回答。',
+  ja: '常に日本語で回答してください。',
+  ko: '항상 한국어로 답변해 주세요.',
 };
 
 export const MODEL_OPTIONS: Record<AIProviderType, string[]> = {
@@ -135,9 +141,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   hotkeyFullscreen: 'Alt+Shift+S',
   hotkeyRegion: 'Alt+Shift+A',
-  theme: 'dark',
+  theme: 'light',
   accentColor: '#7c3aed',
-  language: 'auto',
+  language: 'en',
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
 };
 

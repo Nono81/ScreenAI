@@ -24,5 +24,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Nono81/ScreenAI"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0"
   }
 }
