@@ -22,7 +22,7 @@
       "process": { "relaunch": true }
     },
     "updater": {
-      "active": true,
+      "active": false,
       "dialog": false,
       "pubkey": "",
       "endpoints": [
