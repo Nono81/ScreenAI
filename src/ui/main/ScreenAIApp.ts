@@ -275,8 +275,28 @@ export class ScreenAIApp {
 
   // --- Capture ---
 
+  private showCaptureError(msg: string) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--redbg);color:var(--red);border:1px solid var(--red);border-radius:8px;padding:10px 18px;font-size:13px;z-index:999;';
+    toast.textContent = 'Capture failed: ' + msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  private async handleCaptureResult(dataUrl: string) {
+    if (!this.selectedConversationId) {
+      // No conversation open — auto-create one with the default provider
+      const settings = await settingsStore.get();
+      const provider = settings.defaultProvider;
+      const conv = await conversationStore.create(provider, DEFAULT_MODELS[provider]);
+      this.conversations.push(conv);
+      this.sidebar.setData(this.projects, this.conversations);
+      await this.selectConversation(conv.id);
+    }
+    this.mainView.attachScreenshot(dataUrl);
+  }
+
   private triggerCapture(mode: 'fullscreen' | 'region' = 'fullscreen') {
-    // Desktop: use Tauri native capture
     if ((window as any).__TAURI__) {
       const { invoke } = (window as any).__TAURI__;
       if (invoke) {
@@ -284,33 +304,31 @@ export class ScreenAIApp {
         invoke(cmd).then((result: any) => {
           const dataUrl = typeof result === 'string' ? result : result?.data_url;
           if (dataUrl) {
-            this.mainView.attachScreenshot(dataUrl);
+            this.handleCaptureResult(dataUrl);
+          } else {
+            this.showCaptureError('No image data returned');
           }
         }).catch((err: any) => {
-          console.error('Capture failed:', err);
+          this.showCaptureError(err?.message || String(err));
         });
         return;
       }
     }
-
-    // Extension: send message to background
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage({ type: 'SCREENAI_CAPTURE_TAB' }, (response: any) => {
         if (response?.dataUrl) {
-          this.mainView.attachScreenshot(response.dataUrl);
+          this.handleCaptureResult(response.dataUrl);
         }
       });
       return;
     }
-
     console.warn('Capture not available in this environment');
   }
 
   /** Called from desktop-main.ts when a global shortcut triggers a capture */
   attachScreenshotFromShortcut(dataUrl: string) {
-    this.mainView.attachScreenshot(dataUrl);
+    this.handleCaptureResult(dataUrl);
   }
-
   // --- Theme ---
 
   private applyTheme(theme: string) {

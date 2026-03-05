@@ -247,14 +247,16 @@ export class SettingsPanel {
     // Close
     this.el.querySelector('[data-action="close"]')?.addEventListener('click', () => this.close());
 
-    // Language change -> update UI language + re-render
+    // Language change -> update UI language + re-render (save immediately to avoid losing change on rebuild)
     this.el.querySelector('[data-setting="language"]')?.addEventListener('change', (e) => {
       const lang = (e.target as HTMLSelectElement).value as AppLanguage;
       const uiLang = (lang === 'auto' ? 'en' : lang) as UILanguage;
       setUILanguage(uiLang);
-      if (this.settings) this.settings.language = lang;
+      if (this.settings) {
+        this.settings.language = lang;
+        settingsStore.save(this.settings);
+      }
       this.render();
-      this.events.onLanguageChanged?.();
     });
 
     // Theme

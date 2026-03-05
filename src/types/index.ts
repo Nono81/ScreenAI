@@ -15,11 +15,11 @@ export interface AIProviderConfig {
 }
 
 export const DEFAULT_MODELS: Record<AIProviderType, string> = {
-  claude: 'claude-sonnet-4-20250514',
+  claude: 'claude-sonnet-4-6',
   openai: 'gpt-4o',
   gemini: 'gemini-2.0-flash',
   mistral: 'mistral-large-latest',
-  grok: 'grok-2-vision-1220',
+  grok: 'grok-3',
   ollama: 'llava',
 };
 
@@ -108,7 +108,7 @@ export const LANGUAGE_PROMPTS: Record<AppLanguage, string> = {
 };
 
 export const MODEL_OPTIONS: Record<AIProviderType, string[]> = {
-  claude: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-haiku-4-20250514'],
+  claude: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'],
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o1-preview'],
   gemini: ['gemini-2.0-flash', 'gemini-2.5-pro', 'gemini-2.5-flash'],
   mistral: ['mistral-large-latest', 'mistral-medium-latest', 'pixtral-large-latest'],

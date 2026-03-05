@@ -33,8 +33,8 @@ export class ChatView {
   async setConversation(conversation: Conversation | null, projectInstructions = '') {
     this.conversation = conversation;
     this.projectInstructions = projectInstructions;
+    this.pendingScreenshot = null; // Clear before await so attachScreenshot called right after is not lost
     this.settings = await settingsStore.get();
-    this.pendingScreenshot = null;
 
     if (conversation) {
       this.el.classList.add('on');

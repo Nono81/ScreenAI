@@ -101,16 +101,24 @@ fn native_capture(mode: &str) -> Result<CapturePayload, String> {
     })
 }
 
-// Capture the primary screen
+// Capture fullscreen — hides app window first so it does not appear in screenshot
 #[tauri::command]
-fn capture_screen() -> Result<CapturePayload, String> {
-    native_capture("fullscreen")
+async fn capture_screen(app: AppHandle) -> Result<CapturePayload, String> {
+    if let Some(window) = app.get_window("main") { let _ = window.hide(); }
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let result = native_capture("fullscreen");
+    if let Some(window) = app.get_window("main") { let _ = window.show(); let _ = window.set_focus(); }
+    result
 }
 
-// Capture a region (interactive selection on macOS)
+// Capture region — hides app window first
 #[tauri::command]
-fn capture_region() -> Result<CapturePayload, String> {
-    native_capture("region")
+async fn capture_region(app: AppHandle) -> Result<CapturePayload, String> {
+    if let Some(window) = app.get_window("main") { let _ = window.hide(); }
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let result = native_capture("region");
+    if let Some(window) = app.get_window("main") { let _ = window.show(); let _ = window.set_focus(); }
+    result
 }
 
 // Return app version from tauri.conf.json
@@ -136,32 +144,36 @@ async fn install_update(_app: AppHandle) -> Result<(), String> {
     Err("Updater is not configured yet".to_string())
 }
 
-/// Capture screen via global shortcut and send result to the main window
+/// Capture via global shortcut or tray menu — hides app, captures, restores app with result
 fn shortcut_capture(app: &AppHandle, mode: &str) {
-    match native_capture(mode) {
-        Ok(payload) => {
-            if let Some(window) = app.get_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-                let _ = window.emit("shortcut-capture", &payload);
+    let app_clone = app.clone();
+    let mode = mode.to_string();
+    tauri::async_runtime::spawn(async move {
+        if let Some(window) = app_clone.get_window("main") { let _ = window.hide(); }
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        match native_capture(&mode) {
+            Ok(payload) => {
+                if let Some(window) = app_clone.get_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = window.emit("shortcut-capture", &payload);
+                }
+            }
+            Err(e) => {
+                if let Some(window) = app_clone.get_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = window.emit("capture-error", &e);
+                }
             }
         }
-        Err(e) => {
-            eprintln!("Screen capture failed: {}", e);
-            if let Some(window) = app.get_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-                // Notify frontend of the error
-                let _ = window.emit("capture-error", &e);
-            }
-        }
-    }
+    });
 }
 
 fn main() {
     let tray_menu = SystemTrayMenu::new()
-        .add_item(CustomMenuItem::new("capture", "📸 Capture (Alt+Shift+S)"))
-        .add_item(CustomMenuItem::new("capture_region", "✂️ Region (Alt+Shift+A)"))
+        .add_item(CustomMenuItem::new("capture", "Capture (Alt+Shift+S)"))
+        .add_item(CustomMenuItem::new("capture_region", "Region (Alt+Shift+A)"))
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(CustomMenuItem::new("show", "Open ScreenAI"))
         .add_item(CustomMenuItem::new("quit", "Quit"));
