@@ -42,8 +42,14 @@ async function init() {
   await event.listen('shortcut-capture', (e: any) => {
     const payload = e.payload;
     if (payload?.data_url) {
-      app.attachScreenshotFromShortcut(payload.data_url);
+      app.attachScreenshotFromShortcut(payload.data_url, payload.mode || 'fullscreen');
     }
+  });
+
+  // Listen for capture errors from global shortcuts
+  await event.listen('capture-error', (e: any) => {
+    const msg = typeof e.payload === 'string' ? e.payload : 'Screen capture failed';
+    showErrorToast(msg);
   });
 
   // Listen for update availability from Rust backend
@@ -83,6 +89,14 @@ function showUpdateToast(version: string, body: string) {
   });
 
   setTimeout(() => { if (toast.parentNode) toast.remove(); }, 30000);
+}
+
+function showErrorToast(msg: string) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#3d0000;color:#ff6b6b;border:1px solid #ff6b6b;border-radius:8px;padding:10px 18px;font-size:13px;z-index:999;max-width:400px;text-align:center;';
+  toast.textContent = 'Capture failed: ' + msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
 }
 
 init();

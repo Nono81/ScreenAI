@@ -300,11 +300,16 @@ export class ScreenAIApp {
     if ((window as any).__TAURI__) {
       const { invoke } = (window as any).__TAURI__;
       if (invoke) {
-        const cmd = mode === 'region' ? 'capture_region' : 'capture_screen';
-        invoke(cmd).then((result: any) => {
+        // Always capture fullscreen from Rust; for region mode we crop in the frontend
+        invoke('capture_screen').then(async (result: any) => {
           const dataUrl = typeof result === 'string' ? result : result?.data_url;
           if (dataUrl) {
-            this.handleCaptureResult(dataUrl);
+            if (mode === 'region') {
+              const cropped = await this.showRegionSelector(dataUrl);
+              if (cropped) await this.handleCaptureResult(cropped);
+            } else {
+              await this.handleCaptureResult(dataUrl);
+            }
           } else {
             this.showCaptureError('No image data returned');
           }
@@ -326,9 +331,93 @@ export class ScreenAIApp {
   }
 
   /** Called from desktop-main.ts when a global shortcut triggers a capture */
-  attachScreenshotFromShortcut(dataUrl: string) {
-    this.handleCaptureResult(dataUrl);
+  async attachScreenshotFromShortcut(dataUrl: string, mode: string = 'fullscreen') {
+    if (mode === 'region') {
+      const cropped = await this.showRegionSelector(dataUrl);
+      if (cropped) await this.handleCaptureResult(cropped);
+    } else {
+      await this.handleCaptureResult(dataUrl);
+    }
   }
+  // --- Region Selector ---
+
+  private showRegionSelector(fullDataUrl: string): Promise<string | null> {
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;cursor:crosshair;user-select:none;background:rgba(0,0,0,0.01);';
+
+      const bgImg = document.createElement('img');
+      bgImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;';
+      bgImg.src = fullDataUrl;
+      overlay.appendChild(bgImg);
+
+      const dim = document.createElement('div');
+      dim.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.5);pointer-events:none;';
+      overlay.appendChild(dim);
+
+      const selBox = document.createElement('div');
+      selBox.style.cssText = 'position:absolute;display:none;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);border:2px solid white;';
+      overlay.appendChild(selBox);
+
+      const hint = document.createElement('div');
+      hint.style.cssText = 'position:absolute;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:8px 18px;border-radius:20px;font-size:14px;pointer-events:none;white-space:nowrap;';
+      hint.textContent = 'Drag to select a region  •  ESC to cancel';
+      overlay.appendChild(hint);
+
+      let startX = 0, startY = 0, dragging = false;
+
+      const getRect = (ex: number, ey: number) => ({
+        x: Math.min(startX, ex), y: Math.min(startY, ey),
+        w: Math.abs(ex - startX), h: Math.abs(ey - startY),
+      });
+
+      overlay.addEventListener('mousedown', (e) => {
+        dragging = true;
+        startX = e.clientX; startY = e.clientY;
+        selBox.style.display = 'none';
+      });
+
+      overlay.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const { x, y, w, h } = getRect(e.clientX, e.clientY);
+        Object.assign(selBox.style, { display: 'block', left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+      });
+
+      overlay.addEventListener('mouseup', (e) => {
+        if (!dragging) return;
+        dragging = false;
+        const { x, y, w, h } = getRect(e.clientX, e.clientY);
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+
+        if (w < 10 || h < 10) { resolve(null); return; }
+
+        const img = new Image();
+        img.onload = () => {
+          const sx = img.naturalWidth / window.innerWidth;
+          const sy = img.naturalHeight / window.innerHeight;
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(w * sx);
+          canvas.height = Math.round(h * sy);
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, x * sx, y * sy, w * sx, h * sy, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.src = fullDataUrl;
+      });
+
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          overlay.remove();
+          document.removeEventListener('keydown', onKey);
+          resolve(null);
+        }
+      };
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+    });
+  }
+
   // --- Theme ---
 
   private applyTheme(theme: string) {
