@@ -10,7 +10,6 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::Serialize;
-use std::process::Command;
 use tauri::{
     AppHandle, GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent,
     SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem,
@@ -35,10 +34,11 @@ struct UpdateInfo {
 /// Windows/Linux: uses the `screenshots` crate as fallback
 fn native_capture(mode: &str) -> Result<CapturePayload, String> {
     let tmp_path = std::env::temp_dir().join("screenai_capture.png");
-    let tmp_str = tmp_path.to_str().ok_or("Invalid temp path")?;
 
     #[cfg(target_os = "macos")]
     {
+        use std::process::Command;
+        let tmp_str = tmp_path.to_str().ok_or("Invalid temp path")?;
         // -x = no sound, -C = capture cursor, -t png = format
         // -i = interactive selection (for region mode)
         let args = if mode == "region" {
@@ -197,18 +197,20 @@ fn main() {
             let handle = app.handle();
 
             let handle_fs = handle.clone();
-            app.global_shortcut_manager()
-                .register("Alt+Shift+S", move || {
-                    shortcut_capture(&handle_fs, "fullscreen");
-                })
-                .expect("Failed to register fullscreen shortcut");
+            match app.global_shortcut_manager().register("Alt+Shift+S", move || {
+                shortcut_capture(&handle_fs, "fullscreen");
+            }) {
+                Ok(_) => println!("   Alt+Shift+S → Capture screen"),
+                Err(e) => eprintln!("Warning: could not register Alt+Shift+S (shortcut already taken?): {}", e),
+            }
 
             let handle_rg = handle.clone();
-            app.global_shortcut_manager()
-                .register("Alt+Shift+A", move || {
-                    shortcut_capture(&handle_rg, "region");
-                })
-                .expect("Failed to register region shortcut");
+            match app.global_shortcut_manager().register("Alt+Shift+A", move || {
+                shortcut_capture(&handle_rg, "region");
+            }) {
+                Ok(_) => println!("   Alt+Shift+A → Capture region"),
+                Err(e) => eprintln!("Warning: could not register Alt+Shift+A (shortcut already taken?): {}", e),
+            }
 
             if let Some(window) = app.get_window("main") {
                 let _ = window.show();
@@ -216,8 +218,6 @@ fn main() {
             }
 
             println!("🚀 ScreenAI running in system tray");
-            println!("   Alt+Shift+S → Capture screen");
-            println!("   Alt+Shift+A → Capture region");
 
             Ok(())
         })
