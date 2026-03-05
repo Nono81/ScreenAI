@@ -13,6 +13,7 @@
     "build:desktop-frontend": "vite build --config vite.desktop.config.ts --outDir dist-desktop"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^1.6.3",
     "@types/chrome": "^0.0.268",
     "sharp": "^0.34.5",
     "typescript": "^5.4.0",
