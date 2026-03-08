@@ -203,20 +203,21 @@ body {
 .badge { display: inline-block; font-size: 10px; font-weight: 600; color: var(--ac); background: var(--acbg); padding: 3px 10px; border-radius: 20px; margin-top: 2px; }
 
 /* Chat Messages */
-.chat { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+.chat { flex: 1; display: none; flex-direction: column; overflow: hidden; overflow-x: hidden; }
 .chat.on { display: flex; }
-.msgs { flex: 1; overflow-y: auto; padding: 18px 24px; display: flex; flex-direction: column; gap: 12px; }
-.msg-wrap { display: flex; flex-direction: column; max-width: 75%; animation: mi .2s ease; }
+.msgs { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 18px 24px; display: flex; flex-direction: column; gap: 12px; }
+.msg-wrap { display: flex; flex-direction: column; max-width: 75%; min-width: 0; animation: mi .2s ease; }
 .mu-wrap { align-self: flex-end; align-items: flex-end; }
 .ma-wrap { align-self: flex-start; align-items: flex-start; }
-.msg { border-radius: var(--rl); padding: 11px 16px; font-size: 13px; line-height: 1.65; }
+.msg { border-radius: var(--rl); padding: 11px 16px; font-size: 13px; line-height: 1.65; max-width: 100%; overflow-wrap: break-word; word-break: break-word; min-width: 0; }
 @keyframes mi { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .mu { background: var(--msg-u-bg); color: var(--msg-u-c); border-bottom-right-radius: 4px; box-shadow: 0 2px 8px var(--acsh); }
 .ma { background: var(--msg-a-bg); border: 1px solid var(--msg-a-bd); border-bottom-left-radius: 4px; box-shadow: var(--sh-s); transition: background .2s; }
 .ma strong { color: var(--ac); }
 .ma code { background: var(--acbg); color: var(--ac); padding: 1px 6px; border-radius: 5px; font-family: var(--fm); font-size: 11.5px; }
-.mcode { background: var(--bg3); border-radius: 8px; padding: 10px 12px; font-family: var(--fm); font-size: 11.5px; margin: 8px 0; border: 1px solid var(--bds); line-height: 1.5; transition: background .2s; }
-.msg p { margin-bottom: 6px; }
+.mcode { background: var(--bg3); border-radius: 8px; padding: 10px 12px; font-family: var(--fm); font-size: 11.5px; margin: 8px 0; border: 1px solid var(--bds); line-height: 1.5; transition: background .2s; max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.msg pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.msg p { margin-bottom: 6px; overflow-wrap: break-word; word-break: break-word; }
 .msg p:last-child { margin-bottom: 0; }
 .mimg { display: block; max-width: 100%; max-height: 130px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--bd); cursor: pointer; transition: opacity .12s; -webkit-user-drag: none; user-select: none; image-rendering: -webkit-optimize-contrast; }
 .mimg:hover { opacity: .85; }
