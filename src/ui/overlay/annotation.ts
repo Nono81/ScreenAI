@@ -38,7 +38,7 @@ export class AnnotationCanvas {
     this.canvas = document.createElement('canvas');
     this.canvas.width = width;
     this.canvas.height = height;
-    this.canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;cursor:default;';
+    this.canvas.style.cssText = 'display:block;max-width:100%;max-height:100%;cursor:default;';
     this.ctx = this.canvas.getContext('2d')!;
     this.bgImage = new Image();
     this.bgImage.src = screenshotUrl;

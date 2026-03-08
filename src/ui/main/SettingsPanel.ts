@@ -197,6 +197,12 @@ export class SettingsPanel {
               </button>
               <div class="upd-status" data-update-status style="display:none"></div>
             </div>
+            <div class="sr" style="margin-top:4px">
+              <button class="sb-ft-btn" data-action="report-bug" style="width:100%;justify-content:center;gap:6px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Signaler un bug
+              </button>
+            </div>
           </div>
 
           <button class="bsv" data-action="save">${i.save}</button>
@@ -381,6 +387,16 @@ export class SettingsPanel {
 
     // Check for updates
     this.el.querySelector('[data-action="check-update"]')?.addEventListener('click', () => this.checkForUpdates());
+
+    // Report bug
+    this.el.querySelector('[data-action="report-bug"]')?.addEventListener('click', () => {
+      const tauri = (window as any).__TAURI__;
+      if (tauri?.shell?.open) {
+        tauri.shell.open('https://github.com/Nono81/ScreenAI/issues/new');
+      } else {
+        window.open('https://github.com/Nono81/ScreenAI/issues/new', '_blank');
+      }
+    });
 
     // Editable shortcuts
     this.el.querySelectorAll('[data-shortcut-edit]').forEach(el => {

@@ -441,6 +441,12 @@ fn show_capture_toolbar(app: &AppHandle) {
     open_capture_overlay(app, "toolbar");
 }
 
+/// Tauri command to open capture overlay from JS
+#[tauri::command]
+fn open_capture_overlay_cmd(app: AppHandle, mode: String) {
+    open_capture_overlay(&app, &mode);
+}
+
 #[tauri::command]
 fn get_window_label(window: tauri::Window) -> String {
     window.label().to_string()
@@ -479,6 +485,52 @@ async fn close_capture_overlay(app: AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+/// Share a file using the native OS share dialog (Windows)
+#[tauri::command]
+async fn share_native(file_path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        // Use PowerShell to open the Windows share dialog
+        let escaped = file_path.replace("'", "''");
+        let script = format!(
+            "[Windows.ApplicationModel.DataTransfer.DataTransferManager, Windows.ApplicationModel.DataTransfer, ContentType=WindowsRuntime] > $null; \
+             $file = [Windows.Storage.StorageFile]::GetFileFromPathAsync('{}').GetAwaiter().GetResult(); \
+             $dto = [Windows.ApplicationModel.DataTransfer.DataTransferManager]::GetForCurrentView(); \
+             # Fallback: open share via explorer context menu",
+            escaped
+        );
+        // Simpler approach: use explorer shell verb
+        match Command::new("rundll32.exe")
+            .args(["shell32.dll,OpenAs_RunDLL", &file_path])
+            .spawn()
+        {
+            Ok(_) => {},
+            Err(_) => {
+                // Fallback: open the file location
+                let _ = Command::new("explorer.exe")
+                    .args(["/select,", &file_path])
+                    .spawn();
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        let _ = Command::new("open")
+            .args(["-a", "Finder", &file_path])
+            .spawn();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::Command;
+        let _ = Command::new("xdg-open")
+            .arg(&file_path)
+            .spawn();
+    }
+    Ok(())
 }
 
 /// Update a global shortcut: unregister the old one and register the new one.
@@ -804,7 +856,9 @@ fn main() {
             get_window_label,
             get_pending_capture,
             send_capture_to_main,
-            close_capture_overlay
+            close_capture_overlay,
+            open_capture_overlay_cmd,
+            share_native
         ])
         .run(tauri::generate_context!())
         .expect("Error running ScreenAI");

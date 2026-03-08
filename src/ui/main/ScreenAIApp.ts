@@ -401,12 +401,24 @@ export class ScreenAIApp {
   }
 
   private triggerCapture(mode: 'fullscreen' | 'region' = 'fullscreen') {
-    this.showCaptureToolbar(mode);
+    // Always use the Tauri separate overlay window for capture
+    const tauri = (window as any).__TAURI__;
+    if (tauri?.invoke) {
+      const tauriMode = mode === 'region' ? 'region' : 'toolbar';
+      tauri.invoke('open_capture_overlay_cmd', { mode: tauriMode }).catch((err: any) => {
+        console.error('Failed to open capture overlay:', err);
+        // Fallback to in-app capture if Tauri command fails
+        this.executeCapture(mode);
+      });
+    } else {
+      // Browser preview fallback
+      this.showCaptureToolbar(mode);
+    }
   }
 
   /** Called from desktop-main.ts when Alt+Shift+S triggers the capture toolbar */
   triggerCaptureFromShortcut() {
-    this.showCaptureToolbar('fullscreen');
+    // No-op: the shortcut is now handled entirely by Rust
   }
 
   private showCaptureToolbar(defaultMode: string) {

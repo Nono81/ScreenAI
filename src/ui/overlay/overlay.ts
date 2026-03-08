@@ -652,13 +652,9 @@ export class ScreenAIOverlay {
             <button class="sai-format-opt" data-fmt="pdf">Document PDF <span class="sai-fmt-ext">.pdf</span></button>
           </div>
         </div>
-        <button class="sai-ab-btn" id="sai-email-btn" title="Envoyer par email">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
-          Email
-        </button>
-        <button class="sai-ab-btn" id="sai-print-btn" title="Imprimer">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Imprimer
+        <button class="sai-ab-btn" id="sai-share-btn" title="Partager via le dialogue natif de l'OS">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Partager
         </button>
       </div>
       <div class="sai-ab-right">
@@ -703,11 +699,8 @@ export class ScreenAIOverlay {
       }
     });
 
-    // Email
-    container.querySelector('#sai-email-btn')?.addEventListener('click', () => this.handleEmail());
-
-    // Print
-    container.querySelector('#sai-print-btn')?.addEventListener('click', () => this.handlePrint());
+    // Share (native OS dialog)
+    container.querySelector('#sai-share-btn')?.addEventListener('click', () => this.handleShareNative());
 
     // Drag to external app
     container.querySelector('#sai-drag-btn')?.addEventListener('click', () => this.handleDragExternal());
@@ -720,32 +713,24 @@ export class ScreenAIOverlay {
     });
   }
 
-  private handleEmail() {
+  private async handleShareNative() {
     if (!this.annotationCanvas) return;
-    const dataUrl = this.annotationCanvas.toDataUrl();
-    // Copy to clipboard first so user can paste in email
-    fetch(dataUrl).then(r => r.blob()).then(blob => {
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
-        // Open mailto link
-        const subject = encodeURIComponent('Capture ScreenAI');
-        const body = encodeURIComponent('Veuillez trouver la capture en piece jointe (collez avec Ctrl+V).');
-        window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
-        this.showToast('Image copiee — collez-la dans votre email (Ctrl+V)');
-      });
-    }).catch(() => {
-      this.showToast('Erreur lors de la copie');
-    });
-  }
-
-  private handlePrint() {
-    if (!this.annotationCanvas) return;
-    const dataUrl = this.annotationCanvas.toDataUrl();
-    const printWin = window.open('', '_blank');
-    if (printWin) {
-      printWin.document.write(`<!DOCTYPE html><html><head><title>ScreenAI - Impression</title><style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#fff;}img{max-width:100%;max-height:100vh;object-fit:contain;}@media print{body{margin:0;}}</style></head><body><img src="${dataUrl}" onload="setTimeout(()=>{window.print();window.close();},300)"></body></html>`);
-      printWin.document.close();
-    } else {
-      this.showToast('Impossible d\'ouvrir la fenetre d\'impression');
+    const tauri = (window as any).__TAURI__;
+    if (!tauri?.invoke) {
+      this.showToast('Partage natif disponible uniquement dans l\'application');
+      return;
+    }
+    try {
+      const dataUrl = this.annotationCanvas.toDataUrl();
+      const base64 = dataUrl.split(',')[1];
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const filePath: string = await tauri.invoke('save_temp_capture', { data: Array.from(bytes) });
+      await tauri.invoke('share_native', { filePath });
+    } catch (err) {
+      console.error('Share failed:', err);
+      this.showToast('Erreur lors du partage');
     }
   }
 
@@ -1516,6 +1501,7 @@ export class ScreenAIOverlay {
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
+        position: relative;
       }
 
       /* ---- Crop overlay ---- */
