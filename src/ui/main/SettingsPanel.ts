@@ -256,15 +256,11 @@ export class SettingsPanel {
     const shortcuts = s.shortcuts || {
       captureFullscreen: 'Alt+Shift+S',
       captureRegion: 'Alt+Shift+A',
-      captureWindow: 'Alt+Shift+W',
-      search: 'Ctrl+K',
     };
 
     const items = [
       { key: 'captureFullscreen', label: `Capture d'ecran`, shortcut: shortcuts.captureFullscreen || 'Alt+Shift+S' },
-      { key: 'captureRegion', label: 'Capture zone (directe)', shortcut: shortcuts.captureRegion || 'Alt+Shift+A' },
-      { key: 'captureWindow', label: 'Capture fenetre', shortcut: shortcuts.captureWindow || 'Alt+Shift+W' },
-      { key: 'search', label: i.search, shortcut: shortcuts.search || 'Ctrl+K' },
+      { key: 'captureRegion', label: 'Capture zone', shortcut: shortcuts.captureRegion || 'Alt+Shift+A' },
     ];
 
     return items.map(item => `
@@ -477,15 +473,13 @@ export class SettingsPanel {
           this.settings.shortcuts = {
             captureFullscreen: 'Alt+Shift+S',
             captureRegion: 'Alt+Shift+A',
-            captureWindow: 'Alt+Shift+W',
-            search: 'Ctrl+K',
           };
         }
         (this.settings.shortcuts as any)[key] = shortcut;
       }
 
       // Update global shortcut in Tauri for capture shortcuts
-      const globalActions = ['captureFullscreen', 'captureRegion', 'captureWindow'];
+      const globalActions = ['captureFullscreen', 'captureRegion'];
       if (globalActions.includes(key)) {
         const tauri = (window as any).__TAURI__;
         if (tauri?.invoke) {

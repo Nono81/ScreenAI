@@ -135,7 +135,6 @@ function showCaptureToolbar(screenshotUrl: string) {
   bar.innerHTML = `
     <div class="scb-modes">
       ${btnsHtml}
-      <button class="scb scb-off" disabled title="Bientot disponible"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg><span>Video</span></button>
     </div>
     <div class="scb-sep"></div>
     <div class="scb-delay">

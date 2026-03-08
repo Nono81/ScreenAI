@@ -38,7 +38,7 @@ export class AnnotationCanvas {
     this.canvas = document.createElement('canvas');
     this.canvas.width = width;
     this.canvas.height = height;
-    this.canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;';
+    this.canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;cursor:default;';
     this.ctx = this.canvas.getContext('2d')!;
     this.bgImage = new Image();
     this.bgImage.src = screenshotUrl;
@@ -59,7 +59,7 @@ export class AnnotationCanvas {
       tool === 'eraser' ? 'not-allowed' :
       tool === 'number' ? 'copy' :
       tool === 'pipette' ? 'crosshair' :
-      'crosshair';
+      'default';
   }
 
   setColor(color: string) {
@@ -297,7 +297,7 @@ export class AnnotationCanvas {
       position: absolute;
       left: ${pixelLeft}px;
       top: ${pixelTop}px;
-      z-index: 100;
+      z-index: 200;
       font-size: 16px;
       padding: 4px 8px;
       border: 2px solid ${this.currentColor};
@@ -306,13 +306,20 @@ export class AnnotationCanvas {
       border-radius: 4px;
       outline: none;
       min-width: 120px;
+      pointer-events: auto;
     `;
 
-    // Append to the canvas container (inside Shadow DOM) so it's visible above the overlay
-    this.container.appendChild(input);
-    input.focus();
+    // Disable canvas pointer events so the input can receive focus/clicks
+    this.canvas.style.pointerEvents = 'none';
 
+    this.container.appendChild(input);
+    // Delay focus to avoid immediate blur
+    requestAnimationFrame(() => input.focus());
+
+    let committed = false;
     const commit = () => {
+      if (committed) return;
+      committed = true;
       if (input.value.trim()) {
         this.pushAnnotation({
           type: 'text',
@@ -324,11 +331,13 @@ export class AnnotationCanvas {
         this.redraw();
       }
       input.remove();
+      this.canvas.style.pointerEvents = 'auto';
     };
 
     input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
       if (e.key === 'Enter') commit();
-      if (e.key === 'Escape') input.remove();
+      if (e.key === 'Escape') { committed = true; input.remove(); this.canvas.style.pointerEvents = 'auto'; }
     });
     input.addEventListener('blur', commit);
   }

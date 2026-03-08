@@ -363,10 +363,10 @@ export class ScreenAIOverlay {
         <div class="sai-crop-handle sai-crop-edge" data-pos="b"></div>
         <div class="sai-crop-handle sai-crop-edge" data-pos="l"></div>
         <div class="sai-crop-handle sai-crop-edge" data-pos="r"></div>
-      </div>
-      <div class="sai-crop-actions">
-        <button class="sai-crop-btn sai-crop-apply" id="sai-crop-apply">Appliquer</button>
-        <button class="sai-crop-btn sai-crop-cancel" id="sai-crop-cancel">Annuler</button>
+        <div class="sai-crop-actions">
+          <button class="sai-crop-btn sai-crop-apply" id="sai-crop-apply">Appliquer</button>
+          <button class="sai-crop-btn sai-crop-cancel" id="sai-crop-cancel">Annuler</button>
+        </div>
       </div>
     `;
 

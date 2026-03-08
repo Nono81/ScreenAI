@@ -717,7 +717,6 @@ fn main() {
     let tray_menu = SystemTrayMenu::new()
         .add_item(CustomMenuItem::new("capture", "Capture (Alt+Shift+S)"))
         .add_item(CustomMenuItem::new("capture_region", "Region (Alt+Shift+A)"))
-        .add_item(CustomMenuItem::new("capture_window", "Window (Alt+Shift+W)"))
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(CustomMenuItem::new("show", "Open ScreenAI"))
         .add_item(CustomMenuItem::new("quit", "Quit"));
@@ -731,7 +730,7 @@ fn main() {
                 SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                     "capture" => open_capture_overlay(app, "toolbar"),
                     "capture_region" => open_capture_overlay(app, "region"),
-                    "capture_window" => open_capture_overlay(app, "window"),
+                    // "capture_window" removed — not implemented yet
                     "show" => {
                         if let Some(window) = app.get_window("main") {
                             let _ = window.show();
@@ -769,13 +768,7 @@ fn main() {
                 Err(e) => eprintln!("Warning: could not register Alt+Shift+A (shortcut already taken?): {}", e),
             }
 
-            let handle_wn = handle.clone();
-            match app.global_shortcut_manager().register("Alt+Shift+W", move || {
-                open_capture_overlay(&handle_wn, "window");
-            }) {
-                Ok(_) => println!("   Alt+Shift+W → Capture window"),
-                Err(e) => eprintln!("Warning: could not register Alt+Shift+W (shortcut already taken?): {}", e),
-            }
+            // Alt+Shift+W (window capture) removed — not implemented yet
 
             if let Some(window) = app.get_window("main") {
                 let _ = window.show();
