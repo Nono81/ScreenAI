@@ -10,6 +10,11 @@ import { t } from './i18n';
 export interface MainViewEvents extends ChatViewEvents {
   onCapture: () => void;
   onEditProject: (id: string) => void;
+  onRenameConversation: (id: string) => void;
+  onDeleteConversation: (id: string) => void;
+  onMoveConversation: (id: string) => void;
+  onRemoveFromProject: (id: string) => void;
+  onToggleFavoriteConversation: (id: string) => void;
 }
 
 export class MainView {
@@ -41,6 +46,11 @@ export class MainView {
       onCaptureFullscreen: events.onCaptureFullscreen,
       onCaptureRegion: events.onCaptureRegion,
       onConversationUpdated: events.onConversationUpdated,
+      onRenameConversation: (id) => events.onRenameConversation(id),
+      onDeleteConversation: (id) => events.onDeleteConversation(id),
+      onMoveConversation: (id) => events.onMoveConversation(id),
+      onRemoveFromProject: (id) => events.onRemoveFromProject(id),
+      onToggleFavoriteConversation: (id) => events.onToggleFavoriteConversation(id),
     });
 
     this.renderWelcome();
@@ -64,15 +74,9 @@ export class MainView {
   async showConversation(conversation: Conversation, project: Project | null) {
     this.currentProject = project;
     this.welcomeEl.classList.add('hid');
+    this.projectHeaderEl.style.display = 'none';
 
-    if (project) {
-      this.renderProjectHeader(project);
-      this.projectHeaderEl.style.display = '';
-    } else {
-      this.projectHeaderEl.style.display = 'none';
-    }
-
-    await this.chatView.setConversation(conversation, project?.instructions || '');
+    await this.chatView.setConversation(conversation, project?.instructions || '', project);
   }
 
   attachScreenshot(dataUrl: string) {

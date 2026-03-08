@@ -90,7 +90,7 @@ export class ScreenAIOverlay {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       const toolMap: Record<string, AnnotationTool> = {
-        p: 'pointer', a: 'arrow', l: 'line', r: 'rectangle', c: 'circle',
+        v: 'pointer', a: 'arrow', l: 'line', r: 'rectangle', c: 'circle',
         t: 'text', n: 'number', h: 'highlighter', b: 'blur', e: 'eraser',
         d: 'freehand', i: 'pipette',
       };
@@ -154,7 +154,7 @@ export class ScreenAIOverlay {
 
     // Primary tools — always visible
     const primaryTools: { id: string; label: string; key: string }[] = [
-      { id: 'pointer', label: 'Selectionner', key: 'P' },
+      { id: 'pointer', label: 'Selectionner', key: 'V' },
       { id: 'freehand', label: 'Crayon', key: 'D' },
       { id: 'arrow', label: 'Fleche', key: 'A' },
       { id: 'rectangle', label: 'Rectangle', key: 'R' },
@@ -591,62 +591,180 @@ export class ScreenAIOverlay {
 
   private handleAnnotationSelected(ann: Annotation | null, idx: number) {
     const shadow = this.root.shadowRoot!;
-    shadow.querySelector('.sai-sel-popover')?.remove();
-    if (!ann || idx < 0) return;
+    const existing = shadow.querySelector('.sai-sel-popover') as HTMLElement | null;
 
-    const canvas = this.annotationCanvas!.getCanvas();
-    const rect = canvas.getBoundingClientRect();
+    if (!ann || idx < 0) { existing?.remove(); return; }
+
     const pts = ann.points;
-    if (!pts.length) return;
+    if (!pts.length) { existing?.remove(); return; }
 
-    // Calculate position of the annotation on screen
-    const scaleX = rect.width / canvas.width;
-    const scaleY = rect.height / canvas.height;
-    let cx: number, cy: number;
-    if (ann.type === 'number' || ann.type === 'text') {
-      cx = rect.left + pts[0].x * scaleX;
-      cy = rect.top + pts[0].y * scaleY;
-    } else if (pts.length >= 2) {
-      const start = pts[0], end = pts[pts.length - 1];
-      cx = rect.left + ((start.x + end.x) / 2) * scaleX;
-      cy = rect.top + Math.min(start.y, end.y) * scaleY;
-    } else {
-      cx = rect.left + pts[0].x * scaleX;
-      cy = rect.top + pts[0].y * scaleY;
-    }
+    // Use getSelectedBoundsCSS for position
+    const bounds = this.annotationCanvas?.getSelectedBoundsCSS();
+    if (!bounds) { existing?.remove(); return; }
 
-    const colors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#AF52DE', '#FFFFFF'];
+    // If popover already exists, keep it stable — never reposition
+    if (existing) return;
+
+    // Build new popover
+    const colors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#AF52DE', '#FFFFFF', '#000000'];
     const popover = document.createElement('div');
     popover.className = 'sai-sel-popover';
-    popover.style.cssText = `position:fixed;left:${cx}px;top:${Math.max(10, cy - 50)}px;transform:translateX(-50%);background:var(--bg3,#1e1e2e);border:1px solid var(--bd,#333);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:8px;z-index:9999;display:flex;align-items:center;gap:6px;`;
+    // Position above the annotation — estimate popover height ~160px for text, ~130px otherwise
+    const popH = ann.type === 'text' ? 170 : 140;
+    let popTop = bounds.top - popH - 8;
+    if (popTop < 5) popTop = bounds.top + 40; // if no room above, put below
+    popover.style.cssText = `position:fixed;left:${bounds.cx}px;top:${popTop}px;transform:translateX(-50%);background:#1a1a2e;border:1px solid #2a2a4a;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6);padding:10px;z-index:9999;user-select:none;`;
 
     let html = '';
+    // Drag handle
+    html += `<div class="sai-sel-drag" style="display:flex;align-items:center;justify-content:center;cursor:grab;padding:2px 0 6px;"><div style="width:32px;height:3px;border-radius:2px;background:rgba(255,255,255,0.2);"></div></div>`;
+
+    // Color row
+    html += `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">`;
     for (const c of colors) {
-      html += `<button class="sai-sel-color" data-sel-color="${c}" style="width:22px;height:22px;border-radius:50%;border:2px solid ${c === ann.color ? '#fff' : 'transparent'};background:${c};cursor:pointer;transition:border-color .15s;" title="${c}"></button>`;
+      const sel = c.toUpperCase() === (ann.color || '').toUpperCase();
+      html += `<button class="sai-sel-color" data-sel-color="${c}" style="width:22px;height:22px;border-radius:50%;border:2px solid ${sel ? '#fff' : 'transparent'};background:${c};cursor:pointer;transition:border-color .15s;flex-shrink:0;" title="${c}"></button>`;
     }
-    html += `<div style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 2px;"></div>`;
-    html += `<button class="sai-sel-del" style="width:26px;height:26px;border-radius:6px;border:none;background:rgba(255,60,60,0.15);color:#ff6b6b;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>`;
+    // Pipette button — empty circle with +
+    html += `<button class="sai-sel-pipette" style="width:22px;height:22px;border-radius:50%;border:2px dashed rgba(255,255,255,0.4);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.5);font-size:14px;line-height:1;flex-shrink:0;" title="Pipette — choisir une couleur">+</button>`;
+    html += `</div>`;
+
+    // Show line width only for types where it matters (not highlight, highlighter, number, blur)
+    const noLineWidth = ['text', 'highlight', 'highlighter', 'number', 'blur'];
+    if (ann.type === 'text') {
+      // Font size row (text only)
+      html += `<div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>`;
+      html += `<div style="display:flex;align-items:center;gap:6px;">`;
+      html += `<span style="color:#888;font-size:10px;white-space:nowrap;">Police</span>`;
+      for (const lw of [1, 3, 5, 8, 12]) {
+        const fs = 18 + lw * 2;
+        const sel = ann.lineWidth === lw;
+        html += `<button class="sai-sel-fs" data-lw="${lw}" style="min-width:28px;height:26px;border-radius:6px;border:1px solid ${sel ? '#7c5cfc' : 'rgba(255,255,255,0.1)'};background:${sel ? 'rgba(124,92,252,0.2)' : 'transparent'};cursor:pointer;color:#e0e0e0;font-size:10px;padding:0 4px;" title="Taille ${fs}px">${fs}</button>`;
+      }
+      html += `</div>`;
+    } else if (!noLineWidth.includes(ann.type)) {
+      // Line width row (arrow, line, rectangle, circle, freehand)
+      html += `<div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>`;
+      html += `<div style="display:flex;align-items:center;gap:6px;">`;
+      html += `<span style="color:#888;font-size:10px;white-space:nowrap;">Trait</span>`;
+      for (const w of [1, 2, 3, 5, 8]) {
+        const sel = ann.lineWidth === w;
+        html += `<button class="sai-sel-lw" data-lw="${w}" style="width:26px;height:26px;border-radius:6px;border:1px solid ${sel ? '#7c5cfc' : 'rgba(255,255,255,0.1)'};background:${sel ? 'rgba(124,92,252,0.2)' : 'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Epaisseur ${w}"><div style="width:${6 + w * 2}px;height:${Math.max(2, w)}px;border-radius:1px;background:#e0e0e0;"></div></button>`;
+      }
+      html += `</div>`;
+    }
+
+    // Separator + delete
+    html += `<div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>`;
+    html += `<button class="sai-sel-del" style="width:100%;height:28px;border-radius:6px;border:none;background:rgba(255,60,60,0.12);color:#ff6b6b;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;" title="Supprimer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>Supprimer</button>`;
 
     popover.innerHTML = html;
     shadow.appendChild(popover);
 
-    // Color change
+    // --- Drag to move popover ---
+    const dragHandle = popover.querySelector('.sai-sel-drag') as HTMLElement;
+    let dragStartX = 0, dragStartY = 0, dragPL = 0, dragPT = 0;
+    const onDragMove = (e: MouseEvent) => {
+      popover.style.left = (dragPL + e.clientX - dragStartX) + 'px';
+      popover.style.top = (dragPT + e.clientY - dragStartY) + 'px';
+      popover.style.transform = 'none';
+    };
+    const onDragUp = () => {
+      dragHandle.style.cursor = 'grab';
+      document.removeEventListener('mousemove', onDragMove);
+      document.removeEventListener('mouseup', onDragUp);
+    };
+    dragHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dragHandle.style.cursor = 'grabbing';
+      const r = popover.getBoundingClientRect();
+      dragPL = r.left; dragPT = r.top;
+      popover.style.left = r.left + 'px';
+      popover.style.top = r.top + 'px';
+      popover.style.transform = 'none';
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      document.addEventListener('mousemove', onDragMove);
+      document.addEventListener('mouseup', onDragUp);
+    });
+
+    // --- Color change ---
     popover.querySelectorAll('.sai-sel-color').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const color = (btn as HTMLElement).dataset.selColor!;
         this.annotationCanvas?.updateSelectedColor(color);
-        // Update border highlights
         popover.querySelectorAll('.sai-sel-color').forEach(b => (b as HTMLElement).style.borderColor = 'transparent');
         (btn as HTMLElement).style.borderColor = '#fff';
       });
     });
 
-    // Delete
+    // --- Line width change ---
+    popover.querySelectorAll('.sai-sel-lw').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const w = parseInt((btn as HTMLElement).dataset.lw!);
+        this.annotationCanvas?.updateSelectedLineWidth(w);
+        popover.querySelectorAll('.sai-sel-lw').forEach(b => {
+          (b as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)';
+          (b as HTMLElement).style.background = 'transparent';
+        });
+        (btn as HTMLElement).style.borderColor = '#7c5cfc';
+        (btn as HTMLElement).style.background = 'rgba(124,92,252,0.2)';
+      });
+    });
+
+    // --- Font size change (text only) ---
+    popover.querySelectorAll('.sai-sel-fs').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lw = parseInt((btn as HTMLElement).dataset.lw!);
+        this.annotationCanvas?.updateSelectedLineWidth(lw);
+        popover.querySelectorAll('.sai-sel-fs').forEach(b => {
+          (b as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)';
+          (b as HTMLElement).style.background = 'transparent';
+        });
+        (btn as HTMLElement).style.borderColor = '#7c5cfc';
+        (btn as HTMLElement).style.background = 'rgba(124,92,252,0.2)';
+        // Also update line width buttons
+        popover.querySelectorAll('.sai-sel-lw').forEach(b => {
+          const bw = parseInt((b as HTMLElement).dataset.lw!);
+          (b as HTMLElement).style.borderColor = bw === lw ? '#7c5cfc' : 'rgba(255,255,255,0.1)';
+          (b as HTMLElement).style.background = bw === lw ? 'rgba(124,92,252,0.2)' : 'transparent';
+        });
+      });
+    });
+
+    // --- Delete ---
     popover.querySelector('.sai-sel-del')?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.annotationCanvas?.deleteSelected();
       popover.remove();
+    });
+
+    // --- Pipette (custom color) ---
+    popover.querySelector('.sai-sel-pipette')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const savedIdx = idx;
+      // Switch to pipette tool
+      this.annotationCanvas?.setTool('pipette');
+      this.updateToolbarActive('pipette');
+      // Override onColorPicked to apply to the selected annotation
+      const origCallback = this.annotationCanvas!.onColorPicked;
+      this.annotationCanvas!.onColorPicked = (hex) => {
+        // Apply picked color to the annotation
+        this.annotationCanvas?.selectAnnotation(savedIdx);
+        this.annotationCanvas?.updateSelectedColor(hex);
+        // Update popover color highlights
+        popover.querySelectorAll('.sai-sel-color').forEach(b => (b as HTMLElement).style.borderColor = 'transparent');
+        // Update pipette button to show picked color
+        const pipBtn = popover.querySelector('.sai-sel-pipette') as HTMLElement;
+        if (pipBtn) { pipBtn.style.background = hex; pipBtn.style.borderStyle = 'solid'; pipBtn.textContent = ''; }
+        // Restore pointer tool and original callback
+        this.annotationCanvas!.onColorPicked = origCallback;
+        this.annotationCanvas?.setTool('pointer');
+        this.updateToolbarActive('pointer');
+        this.annotationCanvas?.selectAnnotation(savedIdx);
+      };
     });
   }
 

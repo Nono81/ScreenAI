@@ -73,8 +73,10 @@ export class ScreenAIApp {
       onDeleteProject: (id) => this.deleteProject(id),
       onDeleteConversation: (id) => this.deleteConversation(id),
       onMoveConversation: (id) => this.moveConversation(id),
+      onRemoveFromProject: (id) => this.removeFromProject(id),
       onToggleFavoriteProject: (id) => this.toggleFavoriteProject(id),
       onToggleFavoriteConversation: (id) => this.toggleFavoriteConversation(id),
+      onEditProject: (id) => this.editProject(id),
     });
 
     this.mainView = new MainView(this.container, {
@@ -83,6 +85,11 @@ export class ScreenAIApp {
       onCaptureRegion: () => this.triggerCapture('region'),
       onEditProject: (id) => this.editProject(id),
       onConversationUpdated: (conv) => this.onConversationUpdated(conv),
+      onRenameConversation: (id) => this.renameConversation(id),
+      onDeleteConversation: (id) => this.deleteConversation(id),
+      onMoveConversation: (id) => this.moveConversation(id),
+      onRemoveFromProject: (id) => this.removeFromProject(id),
+      onToggleFavoriteConversation: (id) => this.toggleFavoriteConversation(id),
     });
 
     this.settingsPanel = new SettingsPanel(this.mainView.getSettingsContainer(), {
@@ -360,6 +367,14 @@ export class ScreenAIApp {
       await conversationStore.update(id, { projectId: data.projectId || undefined });
       await this.loadData();
     });
+  }
+
+  private async removeFromProject(id: string) {
+    await conversationStore.update(id, { projectId: undefined });
+    await this.loadData();
+    if (this.selectedConversationId === id) {
+      this.selectConversation(id);
+    }
   }
 
   // --- Callbacks ---

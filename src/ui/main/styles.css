@@ -111,26 +111,26 @@ body {
 
 /* Navigation */
 .sb-nav { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
-.sec { margin-bottom: 4px; }
-.sec-h { display: flex; align-items: center; padding: 6px 8px; cursor: pointer; user-select: none; border-radius: 6px; transition: background .1s; }
+.sec { margin-bottom: 8px; }
+.sec-h { display: flex; align-items: center; padding: 4px 8px 6px; cursor: pointer; user-select: none; border-radius: 6px; }
 .sec-h:hover { background: var(--surfh); }
-.sec-t { font-size: 10px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .7px; flex: 1; }
+.sec-t { font-size: 11px; font-weight: 600; color: var(--t3); text-transform: uppercase; letter-spacing: 0.5px; flex: 1; }
 .sec-h svg { width: 12px; height: 12px; stroke: var(--t3); fill: none; stroke-width: 2; transition: transform .15s; }
 .sec-h.cl svg { transform: rotate(-90deg); }
-.sec-items { padding-left: 4px; }
+.sec-items { }
 .sec-h.cl + .sec-items { display: none; }
 
 /* Projects */
-.sproj { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--r); cursor: pointer; transition: all .1s; margin-bottom: 1px; }
+.sproj { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: all .1s; margin-bottom: 2px; }
 .sproj:hover { background: var(--surfh); }
-.sproj.on { background: var(--acbg); color: var(--ac); }
 .sproj svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; flex-shrink: 0; }
 .sproj-i { flex: 1; min-width: 0; }
 .sproj-n { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sproj-m { font-size: 10px; color: var(--t3); }
+.sproj-chev { width: 12px; height: 12px; flex-shrink: 0; }
 
 /* Conversations */
-.sconv { padding: 6px 10px 6px 36px; border-radius: 8px; cursor: pointer; transition: all .1s; font-size: 12px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
+.sconv { padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: all .1s; font-size: 13px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.sconv-nested { padding: 6px 12px 6px 48px; font-size: 12px; color: var(--t2); }
 .sconv:hover { background: var(--surfh); color: var(--t1); }
 .sconv.on { background: var(--acbg); color: var(--ac); font-weight: 500; }
 
@@ -198,8 +198,10 @@ body {
 
 /* Chat Header */
 .ch { display: flex; align-items: center; gap: 8px; padding: 10px 24px; border-bottom: 1px solid var(--bds); background: var(--bg2); transition: background .2s; }
-.ch-t { flex: 1; min-width: 0; }
-.ch-t h3 { font-size: 14px; font-weight: 600; letter-spacing: -.2px; }
+.ch-t { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+.ch-t h3 { font-size: 14px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-menu-btn { opacity: 0.5; transition: opacity .15s; }
+.ch-menu-btn:hover { opacity: 1; }
 .badge { display: inline-block; font-size: 10px; font-weight: 600; color: var(--ac); background: var(--acbg); padding: 3px 10px; border-radius: 20px; margin-top: 2px; }
 
 /* Chat Messages */
@@ -219,7 +221,7 @@ body {
 .msg pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
 .msg p { margin-bottom: 6px; overflow-wrap: break-word; word-break: break-word; }
 .msg p:last-child { margin-bottom: 0; }
-.mimg { display: block; max-width: 100%; max-height: 130px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--bd); cursor: pointer; transition: opacity .12s; -webkit-user-drag: none; user-select: none; image-rendering: -webkit-optimize-contrast; }
+.mimg { display: block; max-width: 100%; max-height: 130px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--bd); cursor: pointer; transition: opacity .12s; -webkit-user-drag: none; user-select: none; image-rendering: auto; }
 .mimg:hover { opacity: .85; }
 
 /* Input Bar */
@@ -664,6 +666,7 @@ body {
   transition: opacity 0.12s;
   -webkit-user-drag: none;
   user-select: none;
+  image-rendering: auto;
 }
 .msg-img-thumb:hover { opacity: 0.85; }
 

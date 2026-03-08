@@ -10,16 +10,19 @@ export interface Translations {
   discussion: string;
   project: string;
   searchPlaceholder: string;
+  favorites: string;
   projects: string;
   discussions: string;
   noProject: string;
   noDiscussion: string;
+  noFavorite: string;
   settings: string;
   conversations: string;
 
   // Context menu
   rename: string;
   moveToProject: string;
+  removeFromProject: string;
   delete: string;
 
   // Welcome
@@ -122,16 +125,19 @@ const en: Translations = {
   discussion: "Discussion",
   project: "Project",
   searchPlaceholder: "Search...",
+  favorites: "Favorites",
   projects: "Projects",
   discussions: "Discussions",
   noProject: "No projects",
   noDiscussion: "No discussions",
+  noFavorite: "No favorites",
   settings: "Settings",
   conversations: "conversations",
 
   // Context menu
   rename: "Rename",
   moveToProject: "Move to project",
+  removeFromProject: "Remove from project",
   delete: "Delete",
 
   // Welcome
@@ -235,16 +241,19 @@ const fr: Translations = {
   discussion: "Discussion",
   project: "Projet",
   searchPlaceholder: "Rechercher...",
+  favorites: "Favoris",
   projects: "Projets",
   discussions: "Discussions",
   noProject: "Aucun projet",
   noDiscussion: "Aucune discussion",
+  noFavorite: "Aucun favori",
   settings: "Paramètres",
   conversations: "conversations",
 
   // Context menu
   rename: "Renommer",
   moveToProject: "Déplacer vers un projet",
+  removeFromProject: "Retirer du projet",
   delete: "Supprimer",
 
   // Welcome

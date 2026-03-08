@@ -10,6 +10,10 @@ export type AnnotationTool =
   | 'highlight' | 'highlighter' | 'freehand' | 'text'
   | 'number' | 'blur' | 'eraser' | 'pipette' | 'crop';
 
+type HandlePos = 'tl' | 'tr' | 'bl' | 'br';
+
+interface AnnBounds { x: number; y: number; w: number; h: number; }
+
 export class AnnotationCanvas {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -31,6 +35,17 @@ export class AnnotationCanvas {
   public onAnnotationSelected: ((ann: Annotation | null, index: number) => void) | null = null;
   private cropHistory: { bgSrc: string; width: number; height: number; annotations: Annotation[]; nextNumber: number }[] = [];
   private selectedIndex: number = -1;
+
+  // Pointer drag state
+  private pointerDrag: {
+    type: 'move' | HandlePos;
+    origPoints: { x: number; y: number }[];
+    origBounds: AnnBounds;
+    startX: number;
+    startY: number;
+  } | null = null;
+
+  private handleSize = 8; // half-size of corner handle squares
 
   constructor(
     private container: HTMLElement,
@@ -83,7 +98,6 @@ export class AnnotationCanvas {
 
   undo() {
     if (!this.annotations.length) {
-      // If no annotations to undo, try undoing a crop
       if (this.cropHistory.length > 0) {
         const prev = this.cropHistory.pop()!;
         const img = new Image();
@@ -108,6 +122,7 @@ export class AnnotationCanvas {
       this.nextNumber = Math.max(1, this.nextNumber - 1);
     }
     this.redoStack.push([removed]);
+    this.selectedIndex = -1;
     this.redraw();
   }
 
@@ -120,6 +135,7 @@ export class AnnotationCanvas {
         this.nextNumber = (item.number || 0) + 1;
       }
     }
+    this.selectedIndex = -1;
     this.redraw();
   }
 
@@ -128,15 +144,68 @@ export class AnnotationCanvas {
     this.redoStack.push([...this.annotations]);
     this.annotations = [];
     this.nextNumber = 1;
+    this.selectedIndex = -1;
     this.redraw();
   }
 
   toDataUrl(mimeType: string = 'image/png'): string {
-    return this.canvas.toDataURL(mimeType);
+    // Temporarily hide selection for export
+    const prevSel = this.selectedIndex;
+    this.selectedIndex = -1;
+    this.redraw();
+    const url = this.canvas.toDataURL(mimeType);
+    this.selectedIndex = prevSel;
+    this.redraw();
+    return url;
   }
 
   getWidth(): number { return this.canvas.width; }
   getHeight(): number { return this.canvas.height; }
+
+  // ---- Bounds helpers ----
+
+  private getAnnBounds(ann: Annotation): AnnBounds {
+    const pts = ann.points;
+    if (ann.type === 'number') {
+      const p = pts[0];
+      return { x: p.x - 14, y: p.y - 14, w: 28, h: 28 };
+    }
+    if (ann.type === 'text') {
+      const fontSize = 18 + ann.lineWidth * 2;
+      this.ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      const tw = this.ctx.measureText(ann.text || '').width;
+      return { x: pts[0].x, y: pts[0].y - fontSize, w: tw, h: fontSize };
+    }
+    if (ann.type === 'freehand' || ann.type === 'highlighter') {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of pts) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
+      return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    }
+    if (pts.length >= 2) {
+      const start = pts[0], end = pts[pts.length - 1];
+      const x = Math.min(start.x, end.x);
+      const y = Math.min(start.y, end.y);
+      return { x, y, w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y) };
+    }
+    return { x: pts[0]?.x || 0, y: pts[0]?.y || 0, w: 0, h: 0 };
+  }
+
+  private hitTestHandle(ann: Annotation, x: number, y: number): HandlePos | null {
+    const b = this.getAnnBounds(ann);
+    const hs = this.handleSize + 2; // extra margin
+    const corners: [HandlePos, number, number][] = [
+      ['tl', b.x, b.y],
+      ['tr', b.x + b.w, b.y],
+      ['bl', b.x, b.y + b.h],
+      ['br', b.x + b.w, b.y + b.h],
+    ];
+    for (const [pos, cx, cy] of corners) {
+      if (Math.abs(x - cx) <= hs && Math.abs(y - cy) <= hs) return pos;
+    }
+    return null;
+  }
+
+  // ---- Coordinate helpers ----
 
   private getCanvasCoords(e: MouseEvent): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
@@ -150,33 +219,84 @@ export class AnnotationCanvas {
 
   private pushAnnotation(ann: Annotation) {
     this.annotations.push(ann);
-    this.redoStack = []; // new action clears redo
+    this.redoStack = [];
   }
 
+  // ---- Events ----
+
+  private keyHandler: ((e: KeyboardEvent) => void) | null = null;
+
   private bindEvents() {
+    // Keyboard: Delete selected annotation
+    this.keyHandler = (e: KeyboardEvent) => {
+      if (this.selectedIndex < 0) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        this.deleteSelected();
+      }
+    };
+    document.addEventListener('keydown', this.keyHandler);
+
     this.canvas.addEventListener('mousedown', (e) => {
+      // ===== POINTER TOOL =====
       if (this.currentTool === 'pointer') {
         const { x, y } = this.getCanvasCoords(e);
-        // Find topmost annotation under cursor
+
+        // Check if clicking a resize handle of the selected annotation
+        if (this.selectedIndex >= 0) {
+          const selAnn = this.annotations[this.selectedIndex];
+          const handle = this.hitTestHandle(selAnn, x, y);
+          if (handle) {
+            this.pointerDrag = {
+              type: handle,
+              origPoints: selAnn.points.map(p => ({ ...p })),
+              origBounds: this.getAnnBounds(selAnn),
+              startX: x, startY: y,
+            };
+            return;
+          }
+        }
+
+        // Check if clicking on an annotation body
         let found = -1;
         for (let i = this.annotations.length - 1; i >= 0; i--) {
           if (this.hitTest(this.annotations[i], x, y)) { found = i; break; }
         }
-        this.selectedIndex = found;
-        this.redraw();
-        this.onAnnotationSelected?.(found >= 0 ? this.annotations[found] : null, found);
+
+        if (found >= 0) {
+          this.selectedIndex = found;
+          const ann = this.annotations[found];
+          this.pointerDrag = {
+            type: 'move',
+            origPoints: ann.points.map(p => ({ ...p })),
+            origBounds: this.getAnnBounds(ann),
+            startX: x, startY: y,
+          };
+          this.redraw();
+          this.onAnnotationSelected?.(ann, found);
+        } else {
+          // Click on empty area → deselect
+          if (this.selectedIndex >= 0) {
+            this.selectedIndex = -1;
+            this.pointerDrag = null;
+            this.redraw();
+            this.onAnnotationSelected?.(null, -1);
+          }
+        }
         return;
       }
 
       const { x, y } = this.getCanvasCoords(e);
 
-      // Eraser: find and remove annotation under cursor
+      // Eraser
       if (this.currentTool === 'eraser') {
         this.eraseAt(x, y);
         return;
       }
 
-      // Pipette: pick color from pixel
+      // Pipette
       if (this.currentTool === 'pipette') {
         const pixel = this.ctx.getImageData(Math.round(x), Math.round(y), 1, 1).data;
         const hex = '#' + [pixel[0], pixel[1], pixel[2]].map(v => v.toString(16).padStart(2, '0')).join('');
@@ -185,7 +305,7 @@ export class AnnotationCanvas {
         return;
       }
 
-      // Number badge: place immediately
+      // Number badge
       if (this.currentTool === 'number') {
         const num = this.nextNumber++;
         this.pushAnnotation({
@@ -204,7 +324,6 @@ export class AnnotationCanvas {
       this.startY = y;
       this.currentPoints = [{ x, y }];
 
-      // Save state for live preview
       this.imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
 
       if (this.currentTool === 'text') {
@@ -214,24 +333,69 @@ export class AnnotationCanvas {
     });
 
     this.canvas.addEventListener('mousemove', (e) => {
+      // ===== POINTER DRAG =====
+      if (this.currentTool === 'pointer' && this.pointerDrag && this.selectedIndex >= 0) {
+        const { x, y } = this.getCanvasCoords(e);
+        const dx = x - this.pointerDrag.startX;
+        const dy = y - this.pointerDrag.startY;
+        const ann = this.annotations[this.selectedIndex];
+
+        if (this.pointerDrag.type === 'move') {
+          // Move: translate all points
+          for (let i = 0; i < ann.points.length; i++) {
+            ann.points[i].x = this.pointerDrag.origPoints[i].x + dx;
+            ann.points[i].y = this.pointerDrag.origPoints[i].y + dy;
+          }
+        } else {
+          // Resize via handle
+          this.resizeAnnotation(ann, this.pointerDrag, dx, dy);
+        }
+        this.redraw();
+        // Notify overlay to reposition popover
+        this.onAnnotationSelected?.(ann, this.selectedIndex);
+        return;
+      }
+
+      // ===== POINTER HOVER CURSOR =====
+      if (this.currentTool === 'pointer' && !this.pointerDrag) {
+        const { x, y } = this.getCanvasCoords(e);
+        // Check handle hover
+        if (this.selectedIndex >= 0) {
+          const handle = this.hitTestHandle(this.annotations[this.selectedIndex], x, y);
+          if (handle) {
+            this.canvas.style.cursor = (handle === 'tl' || handle === 'br') ? 'nwse-resize' : 'nesw-resize';
+            return;
+          }
+        }
+        // Check body hover
+        let over = false;
+        for (let i = this.annotations.length - 1; i >= 0; i--) {
+          if (this.hitTest(this.annotations[i], x, y)) { over = true; break; }
+        }
+        this.canvas.style.cursor = over ? 'move' : 'default';
+        return;
+      }
+
       if (!this.isDrawing || this.currentTool === 'pointer') return;
 
       const { x, y } = this.getCanvasCoords(e);
       this.currentPoints.push({ x, y });
 
-      // Restore and draw preview
       if (this.imageData) {
         this.ctx.putImageData(this.imageData, 0, 0);
       }
       this.drawShape(this.currentTool, this.currentPoints, this.currentColor, this.lineWidth, false);
     });
 
-    this.canvas.addEventListener('mouseup', (e) => {
+    this.canvas.addEventListener('mouseup', () => {
+      // ===== POINTER DROP =====
+      if (this.currentTool === 'pointer' && this.pointerDrag) {
+        this.pointerDrag = null;
+        return;
+      }
+
       if (!this.isDrawing || this.currentTool === 'pointer') return;
       this.isDrawing = false;
-
-      const { x, y } = this.getCanvasCoords(e);
-      this.currentPoints.push({ x, y });
 
       this.pushAnnotation({
         type: this.currentTool as Annotation['type'],
@@ -244,15 +408,49 @@ export class AnnotationCanvas {
     });
   }
 
+  // ---- Resize logic ----
+
+  private resizeAnnotation(
+    ann: Annotation,
+    drag: NonNullable<typeof this.pointerDrag>,
+    dx: number,
+    dy: number
+  ) {
+    const ob = drag.origBounds;
+    if (ob.w < 1 && ob.h < 1) return; // can't resize a point
+
+    // Compute new bounds based on handle
+    let nx = ob.x, ny = ob.y, nw = ob.w, nh = ob.h;
+    const handle = drag.type as HandlePos;
+    if (handle === 'tl') { nx = ob.x + dx; ny = ob.y + dy; nw = ob.w - dx; nh = ob.h - dy; }
+    else if (handle === 'tr') { ny = ob.y + dy; nw = ob.w + dx; nh = ob.h - dy; }
+    else if (handle === 'bl') { nx = ob.x + dx; nw = ob.w - dx; nh = ob.h + dy; }
+    else if (handle === 'br') { nw = ob.w + dx; nh = ob.h + dy; }
+
+    // Prevent flipping (minimum 10px)
+    if (nw < 10) { nw = 10; if (handle === 'tl' || handle === 'bl') nx = ob.x + ob.w - 10; }
+    if (nh < 10) { nh = 10; if (handle === 'tl' || handle === 'tr') ny = ob.y + ob.h - 10; }
+
+    const sx = nw / ob.w;
+    const sy = nh / ob.h;
+
+    // Scale all points relative to original bounds
+    for (let i = 0; i < ann.points.length; i++) {
+      const op = drag.origPoints[i];
+      ann.points[i].x = nx + (op.x - ob.x) * sx;
+      ann.points[i].y = ny + (op.y - ob.y) * sy;
+    }
+  }
+
+  // ---- Erase ----
+
   private eraseAt(x: number, y: number) {
-    // Find the topmost annotation whose bounding box contains the click
     for (let i = this.annotations.length - 1; i >= 0; i--) {
       const ann = this.annotations[i];
       if (this.hitTest(ann, x, y)) {
         const removed = this.annotations.splice(i, 1);
-        this.redoStack = []; // erase is a new action
+        this.redoStack = [];
         if (removed[0].type === 'number') {
-          // Recalculate next number
           this.nextNumber = 1;
           for (const a of this.annotations) {
             if (a.type === 'number' && a.number && a.number >= this.nextNumber) {
@@ -265,6 +463,8 @@ export class AnnotationCanvas {
       }
     }
   }
+
+  // ---- Hit test ----
 
   private hitTest(ann: Annotation, x: number, y: number): boolean {
     const margin = 12;
@@ -286,7 +486,6 @@ export class AnnotationCanvas {
     }
 
     if (ann.type === 'freehand' || ann.type === 'highlighter') {
-      // Check proximity to any segment
       for (let i = 1; i < pts.length; i++) {
         if (this.distToSegment(x, y, pts[i - 1], pts[i]) < margin + ann.lineWidth) {
           return true;
@@ -295,7 +494,6 @@ export class AnnotationCanvas {
       return false;
     }
 
-    // For shapes using start/end points: rectangle, circle, highlight, blur, arrow, line
     if (pts.length >= 2) {
       const start = pts[0];
       const end = pts[pts.length - 1];
@@ -318,6 +516,8 @@ export class AnnotationCanvas {
     t = Math.max(0, Math.min(1, t));
     return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
   }
+
+  // ---- Text prompt ----
 
   private promptText(x: number, y: number) {
     const input = document.createElement('input');
@@ -344,11 +544,9 @@ export class AnnotationCanvas {
       pointer-events: auto;
     `;
 
-    // Disable canvas pointer events so the input can receive focus/clicks
     this.canvas.style.pointerEvents = 'none';
 
     this.container.appendChild(input);
-    // Delay focus to avoid immediate blur
     requestAnimationFrame(() => input.focus());
 
     let committed = false;
@@ -377,22 +575,21 @@ export class AnnotationCanvas {
     input.addEventListener('blur', commit);
   }
 
+  // ---- Drawing ----
+
   private redraw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background image
     if (this.bgImage.complete) {
       this.ctx.drawImage(this.bgImage, 0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // Draw all annotations
     for (let i = 0; i < this.annotations.length; i++) {
       const ann = this.annotations[i];
       this.drawShape(ann.type, ann.points, ann.color, ann.lineWidth, true, ann.text, ann.number);
 
-      // Draw selection outline
       if (i === this.selectedIndex) {
-        this.drawSelectionOutline(ann);
+        this.drawSelectionHandles(ann);
       }
     }
   }
@@ -417,16 +614,13 @@ export class AnnotationCanvas {
     switch (type) {
       case 'rectangle': {
         if (points.length < 2) break;
-        const start = points[0];
-        const end = points[points.length - 1];
+        const start = points[0], end = points[points.length - 1];
         ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
         break;
       }
-
       case 'circle': {
         if (points.length < 2) break;
-        const start = points[0];
-        const end = points[points.length - 1];
+        const start = points[0], end = points[points.length - 1];
         const rx = Math.abs(end.x - start.x) / 2;
         const ry = Math.abs(end.y - start.y) / 2;
         const cx = start.x + (end.x - start.x) / 2;
@@ -436,28 +630,23 @@ export class AnnotationCanvas {
         ctx.stroke();
         break;
       }
-
       case 'line': {
         if (points.length < 2) break;
-        const start = points[0];
-        const end = points[points.length - 1];
+        const start = points[0], end = points[points.length - 1];
         ctx.beginPath();
         ctx.moveTo(start.x, start.y);
         ctx.lineTo(end.x, end.y);
         ctx.stroke();
         break;
       }
-
       case 'highlight': {
         if (points.length < 2) break;
-        const start = points[0];
-        const end = points[points.length - 1];
+        const start = points[0], end = points[points.length - 1];
         ctx.globalAlpha = 0.3;
         ctx.fillRect(start.x, start.y, end.x - start.x, end.y - start.y);
         ctx.globalAlpha = 1;
         break;
       }
-
       case 'highlighter': {
         if (points.length < 2) break;
         ctx.globalCompositeOperation = 'multiply';
@@ -476,11 +665,9 @@ export class AnnotationCanvas {
         ctx.globalAlpha = 1;
         break;
       }
-
       case 'arrow': {
         if (points.length < 2) break;
-        const start = points[0];
-        const end = points[points.length - 1];
+        const start = points[0], end = points[points.length - 1];
         ctx.beginPath();
         ctx.moveTo(start.x, start.y);
         ctx.lineTo(end.x, end.y);
@@ -495,7 +682,6 @@ export class AnnotationCanvas {
         ctx.fill();
         break;
       }
-
       case 'freehand': {
         if (points.length < 2) break;
         ctx.beginPath();
@@ -506,11 +692,9 @@ export class AnnotationCanvas {
         ctx.stroke();
         break;
       }
-
       case 'blur': {
         if (points.length < 2) break;
-        const start = points[0];
-        const end = points[points.length - 1];
+        const start = points[0], end = points[points.length - 1];
         const bx = Math.min(start.x, end.x);
         const by = Math.min(start.y, end.y);
         const bw = Math.abs(end.x - start.x);
@@ -519,7 +703,6 @@ export class AnnotationCanvas {
         this.pixelateRegion(bx, by, bw, bh, 10);
         break;
       }
-
       case 'number': {
         if (!points.length || number == null) break;
         const p = points[0];
@@ -537,19 +720,16 @@ export class AnnotationCanvas {
         ctx.textBaseline = 'alphabetic';
         break;
       }
-
       case 'text': {
         if (!text || points.length < 1) break;
         const fontSize = 18 + lineWidth * 2;
         ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
-        // Dark outline for readability on any background
         ctx.strokeStyle = 'rgba(0,0,0,0.7)';
         ctx.lineWidth = 3;
         ctx.lineJoin = 'round';
         ctx.strokeText(text, points[0].x, points[0].y);
-        // Fill with selected color
         ctx.fillStyle = color;
         ctx.fillText(text, points[0].x, points[0].y);
         break;
@@ -559,49 +739,42 @@ export class AnnotationCanvas {
     ctx.restore();
   }
 
-  private drawSelectionOutline(ann: Annotation) {
-    const ctx = this.ctx;
-    const pts = ann.points;
-    if (!pts.length) return;
+  // ---- Selection handles ----
 
+  private drawSelectionHandles(ann: Annotation) {
+    const ctx = this.ctx;
+    const b = this.getAnnBounds(ann);
+    const hs = this.handleSize;
+
+    // Dashed outline
     ctx.save();
     ctx.strokeStyle = '#7c3aed';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
-
-    if (ann.type === 'number') {
-      const p = pts[0];
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
-      ctx.stroke();
-    } else if (ann.type === 'text') {
-      const fontSize = 18 + ann.lineWidth * 2;
-      ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      const metrics = ctx.measureText(ann.text || '');
-      const pad = 4;
-      ctx.strokeRect(pts[0].x - pad, pts[0].y - fontSize - pad, metrics.width + pad * 2, fontSize + pad * 2);
-    } else if (ann.type === 'freehand' || ann.type === 'highlighter') {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const p of pts) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
-      const pad = 6;
-      ctx.strokeRect(minX - pad, minY - pad, maxX - minX + pad * 2, maxY - minY + pad * 2);
-    } else if (pts.length >= 2) {
-      const start = pts[0], end = pts[pts.length - 1];
-      const pad = 6;
-      const x = Math.min(start.x, end.x) - pad;
-      const y = Math.min(start.y, end.y) - pad;
-      const w = Math.abs(end.x - start.x) + pad * 2;
-      const h = Math.abs(end.y - start.y) + pad * 2;
-      ctx.strokeRect(x, y, w, h);
-    }
-
+    ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
     ctx.setLineDash([]);
+
+    // Corner handles
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#7c3aed';
+    ctx.lineWidth = 2;
+    const corners: [number, number][] = [
+      [b.x, b.y],
+      [b.x + b.w, b.y],
+      [b.x, b.y + b.h],
+      [b.x + b.w, b.y + b.h],
+    ];
+    for (const [cx, cy] of corners) {
+      ctx.fillRect(cx - hs, cy - hs, hs * 2, hs * 2);
+      ctx.strokeRect(cx - hs, cy - hs, hs * 2, hs * 2);
+    }
     ctx.restore();
   }
 
+  // ---- Pixelate ----
+
   private pixelateRegion(x: number, y: number, w: number, h: number, pixelSize: number) {
     const ctx = this.ctx;
-    // Clamp to canvas bounds
     const sx = Math.max(0, Math.round(x));
     const sy = Math.max(0, Math.round(y));
     const sw = Math.min(Math.round(w), this.canvas.width - sx);
@@ -621,7 +794,21 @@ export class AnnotationCanvas {
     }
   }
 
+  // ---- Public selection API ----
+
   getSelectedIndex(): number { return this.selectedIndex; }
+
+  getSelectedAnnotation(): Annotation | null {
+    return this.selectedIndex >= 0 ? this.annotations[this.selectedIndex] : null;
+  }
+
+  selectAnnotation(idx: number) {
+    if (idx >= 0 && idx < this.annotations.length) {
+      this.selectedIndex = idx;
+      this.redraw();
+      this.onAnnotationSelected?.(this.annotations[idx], idx);
+    }
+  }
 
   updateSelectedColor(color: string) {
     if (this.selectedIndex >= 0 && this.selectedIndex < this.annotations.length) {
@@ -639,17 +826,43 @@ export class AnnotationCanvas {
 
   deleteSelected() {
     if (this.selectedIndex >= 0 && this.selectedIndex < this.annotations.length) {
-      this.annotations.splice(this.selectedIndex, 1);
+      const removed = this.annotations.splice(this.selectedIndex, 1);
       this.selectedIndex = -1;
       this.redoStack = [];
+      if (removed[0].type === 'number') {
+        this.nextNumber = 1;
+        for (const a of this.annotations) {
+          if (a.type === 'number' && a.number && a.number >= this.nextNumber) {
+            this.nextNumber = a.number + 1;
+          }
+        }
+      }
       this.redraw();
       this.onAnnotationSelected?.(null, -1);
     }
   }
 
   clearSelection() {
-    this.selectedIndex = -1;
-    this.redraw();
+    if (this.selectedIndex >= 0) {
+      this.selectedIndex = -1;
+      this.pointerDrag = null;
+      this.redraw();
+    }
+  }
+
+  /** Get bounding box in CSS pixels (for positioning popover) */
+  getSelectedBoundsCSS(): { cx: number; cy: number; top: number } | null {
+    if (this.selectedIndex < 0) return null;
+    const ann = this.annotations[this.selectedIndex];
+    const b = this.getAnnBounds(ann);
+    const rect = this.canvas.getBoundingClientRect();
+    const sx = rect.width / this.canvas.width;
+    const sy = rect.height / this.canvas.height;
+    return {
+      cx: rect.left + (b.x + b.w / 2) * sx,
+      cy: rect.top + (b.y + b.h / 2) * sy,
+      top: rect.top + b.y * sy,
+    };
   }
 
   getCanvas(): HTMLCanvasElement {
@@ -658,7 +871,6 @@ export class AnnotationCanvas {
 
   /** Replace the background image and resize the canvas (used by crop) */
   replaceBackground(newDataUrl: string) {
-    // Save pre-crop state for undo
     this.cropHistory.push({
       bgSrc: this.bgImage.src,
       width: this.width,
@@ -676,6 +888,7 @@ export class AnnotationCanvas {
       this.annotations = [];
       this.redoStack = [];
       this.nextNumber = 1;
+      this.selectedIndex = -1;
       this.redraw();
     };
     img.src = newDataUrl;
@@ -686,6 +899,7 @@ export class AnnotationCanvas {
   }
 
   destroy() {
+    if (this.keyHandler) document.removeEventListener('keydown', this.keyHandler);
     this.canvas.remove();
   }
 }

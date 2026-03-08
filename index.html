@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ScreenAI — Capture. Annotate. Ask Any AI.</title>
-<meta name="description" content="Take a screenshot, draw on it, and get instant answers from the AI of your choice. Works on any app, any screen. Open source, privacy-first.">
+<title>ScreenAI — Capture. Annotate. Ask AI.</title>
+<meta name="description" content="The next-gen screenshot tool with built-in AI. Region, window, freeform, annotation, OCR, Color Picker, and AI. Available on Windows, macOS and Linux. Free.">
+<meta property="og:title" content="ScreenAI — Capture. Annotate. Ask AI.">
+<meta property="og:description" content="The next-gen screenshot tool. More complete than your OS built-in tool, with AI on top.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://getscreenai.com">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&display=swap');
@@ -17,6 +21,9 @@ a{color:inherit;text-decoration:none}
 nav{max-width:1100px;margin:0 auto;padding:20px 24px;display:flex;align-items:center;justify-content:space-between}
 .nav-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
 .nav-brand svg{width:32px;height:32px;border-radius:8px}
+.nav-links{display:flex;align-items:center;gap:24px}
+.nav-links a{font-size:14px;font-weight:500;color:var(--t2);transition:color .15s}
+.nav-links a:hover{color:var(--ac)}
 .nav-download{padding:8px 20px;border:1px solid var(--bd);border-radius:20px;font-size:14px;font-weight:500;transition:all .15s}
 .nav-download:hover{border-color:var(--ac);color:var(--ac)}
 
@@ -24,7 +31,9 @@ nav{max-width:1100px;margin:0 auto;padding:20px 24px;display:flex;align-items:ce
 .hero{max-width:1100px;margin:0 auto;padding:80px 24px 40px;text-align:center}
 .hero-badge{display:inline-block;font-size:12px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:24px}
 .hero h1{font-size:clamp(40px,6vw,72px);font-weight:900;line-height:1.05;letter-spacing:-2px;margin-bottom:24px}
-.hero p{font-size:18px;color:var(--t2);max-width:600px;margin:0 auto 40px;line-height:1.6}
+.hero-sub{font-size:20px;color:var(--t1);font-weight:600;max-width:640px;margin:0 auto 12px;line-height:1.4}
+.hero p{font-size:17px;color:var(--t2);max-width:620px;margin:0 auto 12px;line-height:1.6}
+.hero-compare{font-size:15px;color:var(--t3);margin-bottom:40px}
 .hero-ctas{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
 .btn{padding:14px 28px;border-radius:24px;font-size:15px;font-weight:600;font-family:var(--f);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:8px;border:none}
 .btn-primary{background:var(--t1);color:white}.btn-primary:hover{background:#333;transform:translateY(-1px)}
@@ -47,24 +56,38 @@ nav{max-width:1100px;margin:0 auto;padding:20px 24px;display:flex;align-items:ce
 .providers-label{font-size:12px;color:var(--t3);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;margin-bottom:24px}
 .providers-grid{display:flex;gap:40px;justify-content:center;flex-wrap:wrap;align-items:center}
 .provider{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:500;color:var(--t2)}
-.provider-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:white}
+.provider-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white}
 
 /* Features */
 .features{max-width:1100px;margin:0 auto;padding:80px 24px}
+.features-title{text-align:center;font-size:clamp(28px,4vw,42px);font-weight:900;margin-bottom:8px;letter-spacing:-1px}
+.features-sub{text-align:center;font-size:16px;color:var(--t2);margin-bottom:48px}
 .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
 .feature{padding:28px;background:white;border:1px solid var(--bd);border-radius:14px;transition:all .15s}
 .feature:hover{border-color:rgba(124,58,237,0.2);box-shadow:0 4px 20px rgba(124,58,237,0.06)}
-.feature-icon{width:40px;height:40px;background:rgba(124,58,237,0.06);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px}
+.feature-icon{width:40px;height:40px;background:rgba(124,58,237,0.06);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:var(--ac)}
 .feature h3{font-size:16px;font-weight:700;margin-bottom:8px}
 .feature p{font-size:14px;color:var(--t2);line-height:1.5}
 
-/* Shortcuts */
-.shortcuts{max-width:1100px;margin:0 auto;padding:40px 24px 80px}
-.shortcuts h2{text-align:center;font-size:28px;font-weight:800;margin-bottom:32px}
-.shortcuts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;max-width:700px;margin:0 auto}
-.shortcut-card{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:white;border:1px solid var(--bd);border-radius:12px}
-.shortcut-card span{font-size:14px;font-weight:500}
-kbd{background:#f4f4f5;border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;font-family:'DM Sans',monospace;color:var(--ac);font-weight:600}
+/* Pricing */
+.pricing{max-width:1100px;margin:0 auto;padding:80px 24px;text-align:center}
+.pricing-title{font-size:clamp(28px,4vw,42px);font-weight:900;margin-bottom:8px;letter-spacing:-1px}
+.pricing-sub{font-size:16px;color:var(--t2);margin-bottom:48px}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;max-width:720px;margin:0 auto}
+.pricing-card{background:white;border:1px solid var(--bd);border-radius:16px;padding:32px;text-align:left;transition:all .15s}
+.pricing-card:hover{border-color:rgba(124,58,237,0.2);box-shadow:0 4px 20px rgba(124,58,237,0.06)}
+.pricing-card.premium{border-color:var(--ac);box-shadow:0 4px 24px rgba(124,58,237,0.1)}
+.pricing-card h3{font-size:20px;font-weight:800;margin-bottom:4px}
+.pricing-price{font-size:14px;color:var(--t2);margin-bottom:20px}
+.pricing-price b{font-size:28px;color:var(--t1);font-weight:900}
+.pricing-list{list-style:none;margin-bottom:24px}
+.pricing-list li{font-size:14px;color:var(--t2);padding:6px 0;display:flex;align-items:center;gap:8px}
+.pricing-list li svg{flex-shrink:0;color:var(--ac)}
+.pricing-cta{display:block;text-align:center;padding:12px 24px;border-radius:20px;font-size:14px;font-weight:600;font-family:var(--f);cursor:pointer;transition:all .15s;border:1px solid var(--bd);background:white;color:var(--t1)}
+.pricing-cta:hover{border-color:var(--ac);color:var(--ac)}
+.pricing-cta.primary{background:var(--t1);color:white;border-color:var(--t1)}
+.pricing-cta.primary:hover{background:#333}
+.pricing-byok{font-size:13px;color:var(--t3);max-width:520px;margin:32px auto 0;line-height:1.5}
 
 /* Download / CTA */
 #download{max-width:1100px;margin:0 auto;padding:80px 24px;text-align:center}
@@ -90,7 +113,9 @@ footer{max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--bd
   .hero-ctas{flex-direction:column;align-items:center}
   .download-btns{flex-direction:column;align-items:center}
   .providers-grid{gap:20px}
+  .pricing-grid{grid-template-columns:1fr}
   footer{flex-direction:column;text-align:center}
+  .nav-links{gap:12px}
 }
 </style>
 </head>
@@ -102,21 +127,27 @@ footer{max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--bd
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#2e1065"/><path d="M25 40 L25 25 L40 25 M75 40 L75 25 L60 25 M25 60 L25 75 L40 75 M75 60 L75 75 L60 75" stroke="#c4b5fd" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="50" cy="50" r="14" stroke="#fff" stroke-width="4" fill="none"/><circle cx="50" cy="50" r="5" fill="#a78bfa"/></svg>
     ScreenAI
   </a>
-  <a href="#download" class="nav-download">Download</a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#download" class="nav-download">Download</a>
+  </div>
 </nav>
 
 <!-- Hero -->
 <section class="hero">
-  <div class="hero-badge">Open Source &middot; AGPL-3.0</div>
-  <h1>Capture. Annotate.<br>Ask Any AI.</h1>
-  <p>Take a screenshot, draw on it, and get instant answers from the AI of your choice. A native desktop app that works on any screen. Your keys, your data, your rules.</p>
+  <div class="hero-badge">Next-gen screen capture tool</div>
+  <h1>Capture. Annotate.<br>Ask AI.</h1>
+  <div class="hero-sub">The next-generation screenshot tool with built-in AI.</div>
+  <p>Capture your screen, annotate, and ask AI — all in a single workflow.</p>
+  <div class="hero-compare">More complete than your OS built-in tool, with AI on top.</div>
   <div class="hero-ctas">
     <a href="#download" class="btn btn-primary">Download Free</a>
-    <a href="#how-it-works" class="btn btn-outline">See how it works</a>
+    <a href="#features" class="btn btn-outline">See how it works</a>
   </div>
   <div class="hero-trust">
-    <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> No data leaves your machine</span>
-    <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg> 6 AI providers supported</span>
+    <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Your data stays between you and your AI</span>
+    <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg> 6 AI providers available</span>
   </div>
 </section>
 
@@ -148,64 +179,139 @@ footer{max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--bd
 <section class="providers">
   <div class="providers-label">Works with your favorite AI</div>
   <div class="providers-grid">
-    <div class="provider"><span class="provider-icon" style="background:#d97706">A</span> Claude</div>
-    <div class="provider"><span class="provider-icon" style="background:#10b981">G</span> GPT-4o</div>
-    <div class="provider"><span class="provider-icon" style="background:#6366f1">G</span> Gemini</div>
-    <div class="provider"><span class="provider-icon" style="background:#f97316">M</span> Mistral</div>
-    <div class="provider"><span class="provider-icon" style="background:#18181b">&#120143;</span> Grok</div>
-    <div class="provider"><span class="provider-icon" style="background:#06b6d4">O</span> Ollama</div>
+    <div class="provider"><span class="provider-icon" style="background:#d97706"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M5 7l7-4 7 4M5 17l7 4 7-4"/></svg></span> Claude</div>
+    <div class="provider"><span class="provider-icon" style="background:#10b981"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="6"/></svg></span> GPT-4o</div>
+    <div class="provider"><span class="provider-icon" style="background:#6366f1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/></svg></span> Gemini</div>
+    <div class="provider"><span class="provider-icon" style="background:#f97316"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><rect x="4" y="10" width="4" height="4" rx="1"/><rect x="10" y="6" width="4" height="12" rx="1"/><rect x="16" y="8" width="4" height="8" rx="1"/></svg></span> Mistral</div>
+    <div class="provider"><span class="provider-icon" style="background:#18181b"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M4 4l16 16M4 20L20 4"/></svg></span> Grok</div>
+    <div class="provider"><span class="provider-icon" style="background:#06b6d4"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="1.5"/></svg></span> Ollama</div>
   </div>
 </section>
 
 <!-- Features -->
-<section id="how-it-works" class="features">
+<section id="features" class="features">
+  <h2 class="features-title">Everything you need in one tool</h2>
+  <p class="features-sub">Screen capture, annotation, AI, OCR, and more. All built in.</p>
   <div class="features-grid">
+
+    <!-- 1. Full screen capture -->
     <div class="feature">
-      <div class="feature-icon">&#9889;</div>
-      <h3>One shortcut to rule them all</h3>
-      <p>Press Alt+Shift+S to capture your screen, or Alt+Shift+A to select a region. No menus, no tabs, just ask.</p>
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+      <h3>Complete screen capture</h3>
+      <p>Region, fullscreen, window, freeform, delayed capture. More modes than your OS built-in tool.</p>
     </div>
+
+    <!-- 2. Professional annotation -->
     <div class="feature">
-      <div class="feature-icon">&#127912;</div>
-      <h3>Draw on your screen</h3>
-      <p>Arrows, rectangles, highlights, freehand — annotate what matters so the AI understands exactly what you mean.</p>
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+      <h3>Professional annotation</h3>
+      <p>Pencil, arrows, shapes, text, numbering, highlighter, blur, crop. Everything to communicate visually.</p>
     </div>
+
+    <!-- 3. Built-in AI -->
     <div class="feature">
-      <div class="feature-icon">&#129302;</div>
-      <h3>Pick your AI</h3>
-      <p>Claude, GPT-4o, Gemini, Mistral, Grok, or your local Ollama. Switch providers in one click. Your API keys stay local.</p>
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4v2a4 4 0 01-8 0V6a4 4 0 014-4z"/><path d="M6 10v1a6 6 0 0012 0v-1"/><path d="M8 18h8"/><path d="M10 22h4"/><path d="M12 18v4"/></svg></div>
+      <h3>Built-in AI</h3>
+      <p>Ask any question about your capture. Claude, GPT, Gemini, Mistral, Grok, Ollama — pick your AI or let ScreenAI choose the best answer.</p>
     </div>
+
+    <!-- 4. OCR & Quick Redact -->
     <div class="feature">
-      <div class="feature-icon">&#128172;</div>
-      <h3>Conversations with context</h3>
-      <p>Every capture can continue an existing thread. The AI sees all previous screenshots, annotations, and messages.</p>
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
+      <h3>OCR &amp; Quick Redact</h3>
+      <p>Extract text from any capture. Automatically mask sensitive information (emails, numbers, IPs).</p>
     </div>
+
+    <!-- 5. Color Picker -->
     <div class="feature">
-      <div class="feature-icon">&#128274;</div>
-      <h3>Privacy-first</h3>
-      <p>Your API keys, your data, stored locally. Zero telemetry. We never see anything. Fully open source (AGPL-3.0).</p>
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg></div>
+      <h3>Color Picker</h3>
+      <p>Capture any color on your screen. HEX, RGB, HSL copied in one click.</p>
     </div>
+
+    <!-- 6. Export & Share -->
     <div class="feature">
-      <div class="feature-icon">&#127760;</div>
-      <h3>Works on every OS</h3>
-      <p>Native desktop app for macOS, Windows, and Linux. Captures any application on your screen with global shortcuts.</p>
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+      <h3>Export &amp; Share</h3>
+      <p>PNG, JPEG, PDF. Copy, save, share via your OS native dialog, or drag &amp; drop directly into any app.</p>
     </div>
+
+    <!-- 7. Web Search -->
+    <div class="feature">
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+      <h3>Web Search</h3>
+      <p>AI searches the web in real time for always up-to-date answers.</p>
+    </div>
+
+    <!-- 8. Persistent Memory -->
+    <div class="feature">
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+      <h3>Persistent Memory</h3>
+      <p>AI remembers your context across conversations. The more you use it, the more relevant it becomes.</p>
+    </div>
+
+    <!-- 9. Keyboard Shortcuts -->
+    <div class="feature">
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8"/></svg></div>
+      <h3>Keyboard Shortcuts</h3>
+      <p>One shortcut for everything: <b>Alt+Shift+S</b> opens capture. <b>Alt+Shift+A</b> launches region select directly.</p>
+    </div>
+
+    <!-- 10. Privacy -->
+    <div class="feature">
+      <div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+      <h3>Privacy</h3>
+      <p>Your data stays between you and your AI. No middleman server. No telemetry. Open source and auditable.</p>
+    </div>
+
   </div>
 </section>
 
-<!-- Shortcuts -->
-<section class="shortcuts">
-  <h2>Keyboard shortcuts</h2>
-  <div class="shortcuts-grid">
-    <div class="shortcut-card"><span>Full screen capture</span><div><kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>S</kbd></div></div>
-    <div class="shortcut-card"><span>Region capture</span><div><kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>A</kbd></div></div>
+<!-- Pricing -->
+<section id="pricing" class="pricing">
+  <h2 class="pricing-title">Simple, transparent pricing</h2>
+  <p class="pricing-sub">Start for free. Upgrade when you need more AI.</p>
+  <div class="pricing-grid">
+    <!-- Free -->
+    <div class="pricing-card">
+      <h3>Free</h3>
+      <div class="pricing-price"><b>$0</b> / forever</div>
+      <ul class="pricing-list">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Full screen capture (all modes)</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Complete annotation tools</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> OCR text extraction</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Color Picker</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Quick Redact</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Export PNG / JPEG / PDF</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Native sharing</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> 10 AI requests / day</li>
+      </ul>
+      <a href="#download" class="pricing-cta">Download</a>
+    </div>
+    <!-- Premium -->
+    <div class="pricing-card premium">
+      <h3>Premium</h3>
+      <div class="pricing-price"><b>$7</b> / month</div>
+      <ul class="pricing-list">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Everything in Free</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Unlimited AI requests</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Choose your AI provider</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Persistent memory</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Best Answer (Best of N)</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Document upload</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Web search</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Projects &amp; organization</li>
+      </ul>
+      <a href="#download" class="pricing-cta primary">Start Premium</a>
+    </div>
   </div>
+  <p class="pricing-byok">Have your own API keys? Use them for unlimited access to all models, no subscription needed.</p>
 </section>
 
 <!-- Download -->
 <section id="download">
   <h2>Start capturing smarter</h2>
-  <p>Free, open source, and private. Install in 30 seconds.</p>
+  <p>Free, private, and available on all platforms. Install in 30 seconds.</p>
   <div class="download-btns">
     <a href="https://github.com/Nono81/ScreenAI/releases/latest" class="dl-btn active">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.5l9.9-1.4v9.5H0zM10.9 2l13.1-2v11.5H10.9zM24 12.5V24l-13.1-1.8V12.5zM9.9 22.6L0 21.2V12.5h9.9z"/></svg>
@@ -224,14 +330,14 @@ footer{max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--bd
 
 <!-- Footer -->
 <footer>
-  <div class="footer-brand">ScreenAI <span>&middot; Capture. Annotate. Ask AI.</span></div>
+  <div class="footer-brand">ScreenAI <span>&middot; Open source (AGPL) &middot; <a href="https://github.com/Nono81/ScreenAI">GitHub</a></span></div>
   <div class="footer-links">
     <a href="https://github.com/Nono81/ScreenAI">GitHub</a>
     <a href="https://getscreenai.com/privacy">Privacy</a>
     <a href="https://github.com/Nono81/ScreenAI/blob/main/LICENSE">License</a>
     <a href="https://github.com/Nono81/ScreenAI/issues">Report a bug</a>
   </div>
-  <a href="https://github.com/Nono81/ScreenAI" class="footer-star">&#11088; Star on GitHub</a>
+  <a href="https://github.com/Nono81/ScreenAI" class="footer-star"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Star on GitHub</a>
 </footer>
 
 </body>

@@ -21,8 +21,10 @@ export interface SidebarEvents {
   onDeleteProject: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onMoveConversation: (id: string) => void;
+  onRemoveFromProject: (id: string) => void;
   onToggleFavoriteProject: (id: string) => void;
   onToggleFavoriteConversation: (id: string) => void;
+  onEditProject: (id: string) => void;
 }
 
 export class Sidebar {
@@ -35,6 +37,7 @@ export class Sidebar {
   private selectedConversationId: string | null = null;
   private searchQuery = '';
   private collapsedSections: Set<string> = new Set();
+  private expandedProjects: Set<string> = new Set();
 
   constructor(private container: HTMLElement, private events: SidebarEvents) {
     this.el = document.createElement('div');
@@ -118,12 +121,23 @@ export class Sidebar {
     this.renderNav();
   }
 
-  private sortByFavorite<T extends { favorite?: boolean; favoritedAt?: number; updatedAt: number }>(items: T[]): T[] {
-    return [...items].sort((a, b) => {
-      if (a.favorite && !b.favorite) return -1;
-      if (!a.favorite && b.favorite) return 1;
-      if (a.favorite && b.favorite) return (b.favoritedAt || 0) - (a.favoritedAt || 0);
-      return b.updatedAt - a.updatedAt;
+  private sortByRecency<T extends { updatedAt: number }>(items: T[]): T[] {
+    return [...items].sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  /** Sort projects by most recent conversation activity */
+  private sortProjectsByActivity(projects: Project[], conversations: Conversation[]): Project[] {
+    const projectLastActivity = new Map<string, number>();
+    for (const c of conversations) {
+      if (c.projectId) {
+        const cur = projectLastActivity.get(c.projectId) || 0;
+        if (c.updatedAt > cur) projectLastActivity.set(c.projectId, c.updatedAt);
+      }
+    }
+    return [...projects].sort((a, b) => {
+      const aTime = Math.max(a.updatedAt, projectLastActivity.get(a.id) || 0);
+      const bTime = Math.max(b.updatedAt, projectLastActivity.get(b.id) || 0);
+      return bTime - aTime;
     });
   }
 
@@ -136,74 +150,95 @@ export class Sidebar {
       this.searchQuery, this.projects, this.conversations
     );
 
-    const projects = this.sortByFavorite(rawProjects);
+    // Sort by recency
+    const projects = this.sortProjectsByActivity(rawProjects, conversations);
+    const allConvos = this.sortByRecency([...conversations]);
 
-    // Projects and their conversations
+    // Group conversations by project
     const projectConvos = new Map<string, Conversation[]>();
-    const rawStandalone: Conversation[] = [];
-
     for (const c of conversations) {
       if (c.projectId) {
         if (!projectConvos.has(c.projectId)) projectConvos.set(c.projectId, []);
         projectConvos.get(c.projectId)!.push(c);
-      } else {
-        rawStandalone.push(c);
       }
     }
 
-    const standalone = this.sortByFavorite(rawStandalone);
+    // Favorites: discussions only (no project favorites)
+    const favConvos = allConvos.filter(c => c.favorite);
 
+    const favoritesCollapsed = this.collapsedSections.has('favorites');
     const projectsCollapsed = this.collapsedSections.has('projects');
     const discussionsCollapsed = this.collapsedSections.has('discussions');
 
-    nav.innerHTML = `
-      <!-- Projects Section -->
-      <div class="sec">
-        <div class="sec-h${projectsCollapsed ? ' cl' : ''}" data-toggle="projects">
-          <span class="sec-t">${i.projects}</span>
-          ${ICONS.chevronDown}
-        </div>
-        <div class="sec-items">
-          ${projects.length === 0 ? `<div class="empty-state">${i.noProject}</div>` :
-            projects.map(p => {
-              const convos = projectConvos.get(p.id) || [];
-              const isActive = this.selectedProjectId === p.id;
-              return `
-                <div class="sproj${isActive ? ' on' : ''}" data-project="${p.id}">
-                  ${ICONS.folder}
-                  <div class="sproj-i">
-                    <div class="sproj-n">${p.favorite ? '<span class="favorite-star"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>' : ''}${this.escapeHtml(p.name)}</div>
-                    <div class="sproj-m">${convos.length} ${i.conversations}</div>
-                  </div>
-                </div>
-                ${isActive ? convos.map(c => `
-                  <div class="sconv${this.selectedConversationId === c.id ? ' on' : ''}${c.favorite ? ' favorite' : ''}" data-conversation="${c.id}">
-                    ${c.favorite ? '<span class="favorite-star"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>' : ''}${this.escapeHtml(c.title)}
-                  </div>
-                `).join('') : ''}
-              `;
-            }).join('')
-          }
-        </div>
-      </div>
+    let html = '';
 
-      <!-- Discussions Section -->
-      <div class="sec">
-        <div class="sec-h${discussionsCollapsed ? ' cl' : ''}" data-toggle="discussions">
-          <span class="sec-t">${i.discussions}</span>
-          ${ICONS.chevronDown}
-        </div>
-        <div class="sec-items">
-          ${standalone.length === 0 ? `<div class="empty-state">${i.noDiscussion}</div>` :
-            standalone.map(c => `
-              <div class="sconv${this.selectedConversationId === c.id ? ' on' : ''}${c.favorite ? ' favorite' : ''}" data-conversation="${c.id}">
-                ${c.favorite ? '<span class="favorite-star"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>' : ''}${this.escapeHtml(c.title)}
-              </div>
-            `).join('')
-          }
-        </div>
+    // === FAVORIS Section ===
+    html += `<div class="sec">
+      <div class="sec-h${favoritesCollapsed ? ' cl' : ''}" data-toggle="favorites">
+        <span class="sec-t">${i.favorites}</span>
+        ${ICONS.chevronDown}
       </div>
-    `;
+      <div class="sec-items">`;
+    if (favConvos.length === 0) {
+      html += `<div class="empty-state">${i.noFavorite}</div>`;
+    } else {
+      for (const c of favConvos) {
+        html += `<div class="sconv${this.selectedConversationId === c.id ? ' on' : ''}" data-conversation="${c.id}">
+          ${this.escapeHtml(c.title)}
+        </div>`;
+      }
+    }
+    html += `</div></div>`;
+
+    // === PROJETS Section ===
+    html += `<div class="sec">
+      <div class="sec-h${projectsCollapsed ? ' cl' : ''}" data-toggle="projects">
+        <span class="sec-t">${i.projects}</span>
+        ${ICONS.chevronDown}
+      </div>
+      <div class="sec-items">`;
+    if (projects.length === 0) {
+      html += `<div class="empty-state">${i.noProject}</div>`;
+    } else {
+      for (const p of projects) {
+        const convos = this.sortByRecency(projectConvos.get(p.id) || []);
+        const isExpanded = this.expandedProjects.has(p.id);
+        html += `<div class="sproj${isExpanded ? ' expanded' : ''}" data-project="${p.id}">
+          <svg class="sproj-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform .15s;${isExpanded ? 'transform:rotate(90deg);' : ''}"><polyline points="9 18 15 12 9 6"/></svg>
+          ${ICONS.folder}
+          <div class="sproj-i"><div class="sproj-n">${this.escapeHtml(p.name)}</div></div>
+        </div>`;
+        if (isExpanded) {
+          for (const c of convos) {
+            html += `<div class="sconv sconv-nested${this.selectedConversationId === c.id ? ' on' : ''}" data-conversation="${c.id}">
+              ${this.escapeHtml(c.title)}
+            </div>`;
+          }
+        }
+      }
+    }
+    html += `</div></div>`;
+
+    // === DISCUSSIONS Section (non-favorite conversations only) ===
+    const nonFavConvos = allConvos.filter(c => !c.favorite);
+    html += `<div class="sec">
+      <div class="sec-h${discussionsCollapsed ? ' cl' : ''}" data-toggle="discussions">
+        <span class="sec-t">${i.discussions}</span>
+        ${ICONS.chevronDown}
+      </div>
+      <div class="sec-items">`;
+    if (nonFavConvos.length === 0) {
+      html += `<div class="empty-state">${i.noDiscussion}</div>`;
+    } else {
+      for (const c of nonFavConvos) {
+        html += `<div class="sconv${this.selectedConversationId === c.id ? ' on' : ''}" data-conversation="${c.id}">
+          ${this.escapeHtml(c.title)}
+        </div>`;
+      }
+    }
+    html += `</div></div>`;
+
+    nav.innerHTML = html;
 
     // Section collapse toggles
     nav.querySelectorAll('[data-toggle]').forEach(el => {
@@ -219,10 +254,16 @@ export class Sidebar {
       });
     });
 
-    // Project click
+    // Project click — toggle expand/collapse
     nav.querySelectorAll('[data-project]').forEach(el => {
       el.addEventListener('click', () => {
-        this.events.onSelectProject((el as HTMLElement).dataset.project!);
+        const id = (el as HTMLElement).dataset.project!;
+        if (this.expandedProjects.has(id)) {
+          this.expandedProjects.delete(id);
+        } else {
+          this.expandedProjects.add(id);
+        }
+        this.renderNav();
       });
       el.addEventListener('contextmenu', (e) => {
         e.preventDefault();
@@ -230,10 +271,8 @@ export class Sidebar {
         const id = (el as HTMLElement).dataset.project!;
         const project = this.projects.find(p => p.id === id);
         if (!project) return;
-        const isFav = project.favorite;
         this.contextMenu.show((e as MouseEvent).clientX, (e as MouseEvent).clientY, [
-          { label: isFav ? 'Retirer des favoris' : 'Ajouter en favori', action: () => this.events.onToggleFavoriteProject(id) },
-          { label: i.rename, action: () => this.events.onRenameProject(id) },
+          { label: 'Modifier', action: () => this.events.onEditProject(id) },
           { label: i.delete, danger: true, action: () => this.events.onDeleteProject(id) },
         ]);
       });
@@ -249,13 +288,17 @@ export class Sidebar {
         e.stopPropagation();
         const id = (el as HTMLElement).dataset.conversation!;
         const conv = this.conversations.find(c => c.id === id);
-        const isFav = conv?.favorite;
+        if (!conv) return;
+        const isFav = conv.favorite;
         const items: ContextMenuItem[] = [
           { label: isFav ? 'Retirer des favoris' : 'Ajouter en favori', action: () => this.events.onToggleFavoriteConversation(id) },
           { label: i.rename, action: () => this.events.onRenameConversation(id) },
-          { label: i.moveToProject, action: () => this.events.onMoveConversation(id) },
-          { label: i.delete, danger: true, action: () => this.events.onDeleteConversation(id) },
+          { label: conv.projectId ? 'Changer de projet' : i.moveToProject, action: () => this.events.onMoveConversation(id) },
         ];
+        if (conv.projectId) {
+          items.push({ label: i.removeFromProject, action: () => this.events.onRemoveFromProject(id) });
+        }
+        items.push({ label: i.delete, danger: true, action: () => this.events.onDeleteConversation(id) });
         this.contextMenu.show((e as MouseEvent).clientX, (e as MouseEvent).clientY, items);
       });
     });

@@ -2,7 +2,7 @@
 // ScreenAI — Chat View Component
 // ============================================
 
-import type { Conversation, Message, AppSettings, AIProviderConfig, BestOfData } from '../../types';
+import type { Conversation, Message, AppSettings, AIProviderConfig, BestOfData, Project } from '../../types';
 import { PROVIDER_LABELS, generateId } from '../../types';
 import { renderMarkdown } from '../../utils/markdown';
 import { createConnector, type StreamCallback } from '../../connectors';
@@ -14,6 +14,7 @@ import { injectMemory } from '../../memory/MemoryPrompt';
 import { handleSlashCommand, isSlashCommand } from '../../memory/SlashCommands';
 import { shouldDetect, detectAndSave } from '../../memory/MemoryDetector';
 import { ICONS } from './icons';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { t } from './i18n';
 import { shouldCompact, compactConversation, getEffectiveMessages, getContextPercentage } from '../../compaction/Compactor';
 import { renderCompactionDivider, renderSummaryMessage, renderContextIndicator } from './CompactionDisplay';
@@ -26,6 +27,11 @@ export interface ChatViewEvents {
   onCaptureFullscreen: () => void;
   onCaptureRegion: () => void;
   onConversationUpdated: (conversation: Conversation) => void;
+  onRenameConversation?: (id: string) => void;
+  onDeleteConversation?: (id: string) => void;
+  onMoveConversation?: (id: string) => void;
+  onRemoveFromProject?: (id: string) => void;
+  onToggleFavoriteConversation?: (id: string) => void;
 }
 
 // Premium check: plan 'pro' OU override local (localStorage.setItem('sai_bestof','1'))
@@ -38,10 +44,12 @@ function isPremium(): boolean {
 export class ChatView {
   private el: HTMLElement;
   private conversation: Conversation | null = null;
+  private currentProject: Project | null = null;
   private settings: AppSettings | null = null;
   private projectInstructions = '';
   private isStreaming = false;
   private bestOfMode = false;
+  private contextMenu = new ContextMenu();
   private memoryCount = 0;
   private pendingAttachments: MessageAttachment[] = [];
   private fileInput: HTMLInputElement | null = null;
@@ -52,8 +60,9 @@ export class ChatView {
     this.container.appendChild(this.el);
   }
 
-  async setConversation(conversation: Conversation | null, projectInstructions = '') {
+  async setConversation(conversation: Conversation | null, projectInstructions = '', project: Project | null = null) {
     this.conversation = conversation;
+    this.currentProject = project;
     this.projectInstructions = projectInstructions;
     this.pendingAttachments = [];
     this.settings = await settingsStore.get();
@@ -101,14 +110,12 @@ export class ChatView {
     const i = t();
     this.el.innerHTML = `
       <div class="ch">
-        <div class="ch-t">
-          <h3>${this.escapeHtml(c.title)}</h3>
+        <div class="ch-t" data-title-area>
+          ${this.currentProject ? `<h3><span style="color:var(--t2);font-weight:500;">${this.escapeHtml(this.currentProject.name)}</span> <span style="color:var(--t3);margin:0 4px;">/</span> ${this.escapeHtml(c.title)}</h3>` : `<h3>${this.escapeHtml(c.title)}</h3>`}
+          <button class="ib ch-menu-btn" data-action="title-menu" title="Menu" style="margin-left:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
         </div>
         ${this.memoryCount > 0 && this.settings?.memoryEnabled !== false ? `<span class="mem-indicator" title="${this.memoryCount} souvenir(s) actif(s)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;color:var(--t2)"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> ${this.memoryCount}</span>` : ''}
         <span data-context-indicator></span>
-        <button class="ib" data-action="edit-conv" title="Edit">
-          ${ICONS.edit}
-        </button>
       </div>
 
       <div class="msgs" data-messages></div>
@@ -188,7 +195,7 @@ export class ChatView {
       }
       if (msg.screenshot) {
         const imgSrc = msg.screenshot.annotatedDataUrl || msg.screenshot.dataUrl;
-        content += `<img class="mimg" src="${imgSrc}" alt="Capture" data-lightbox draggable="false">`;
+        content += `<img class="mimg" src="${imgSrc}" data-fullsrc="${imgSrc}" alt="Capture" data-lightbox draggable="false">`;
       }
 
       if (msg.content) {
@@ -211,11 +218,20 @@ export class ChatView {
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
     msgContainer.querySelectorAll('[data-lightbox]').forEach(img => {
-      img.addEventListener('click', () => this.showLightbox((img as HTMLImageElement).src));
+      const el = img as HTMLImageElement;
+      img.addEventListener('click', () => this.showLightbox(el.dataset.fullsrc || el.src));
     });
 
     msgContainer.querySelectorAll('[data-att-lightbox]').forEach(img => {
-      img.addEventListener('click', () => this.showLightbox((img as HTMLImageElement).src));
+      const el = img as HTMLImageElement;
+      img.addEventListener('click', () => this.showLightbox(el.dataset.fullsrc || el.src));
+    });
+
+    // Generate thumbnails for large images (async, non-blocking)
+    msgContainer.querySelectorAll<HTMLImageElement>('[data-fullsrc]').forEach(async (img) => {
+      const maxW = img.classList.contains('msg-img-thumb') ? 160 : 800;
+      const thumb = await ChatView.createThumbnail(img.dataset.fullsrc!, maxW);
+      if (thumb !== img.dataset.fullsrc) img.src = thumb;
     });
 
     msgContainer.querySelectorAll('.bestof-toggle-btn').forEach(btn => {
@@ -339,6 +355,28 @@ export class ChatView {
         const files = imageItems.map(item => item.getAsFile()).filter(Boolean) as File[];
         await this.handleFiles(files);
       }
+    });
+
+    // Title dropdown menu
+    this.el.querySelector('[data-action="title-menu"]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!this.conversation) return;
+      const btn = e.currentTarget as HTMLElement;
+      const rect = btn.getBoundingClientRect();
+      const id = this.conversation.id;
+      const isFav = this.conversation.favorite;
+      const ii = t();
+      const inProject = !!this.conversation!.projectId;
+      const items: ContextMenuItem[] = [
+        { label: ii.rename, action: () => this.events.onRenameConversation?.(id) },
+        { label: isFav ? 'Retirer des favoris' : 'Ajouter en favori', action: () => this.events.onToggleFavoriteConversation?.(id) },
+        { label: inProject ? 'Changer de projet' : ii.moveToProject, action: () => this.events.onMoveConversation?.(id) },
+      ];
+      if (inProject) {
+        items.push({ label: ii.removeFromProject, action: () => this.events.onRemoveFromProject?.(id) });
+      }
+      items.push({ label: ii.delete, danger: true, action: () => this.events.onDeleteConversation?.(id) });
+      this.contextMenu.show(rect.left, rect.bottom + 4, items);
     });
   }
 
@@ -765,6 +803,27 @@ export class ChatView {
     document.body.appendChild(lb);
   }
 
+  /** Downscale a data URL image for chat display (max 800px wide) */
+  private static createThumbnail(dataUrl: string, maxWidth = 800): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width <= maxWidth) { resolve(dataUrl); return; }
+        const scale = maxWidth / img.width;
+        const canvas = document.createElement('canvas');
+        canvas.width = maxWidth;
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d')!;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   private renderAttachments(attachments: MessageAttachment[]): string {
     if (!attachments.length) return '';
     const images = attachments.filter(a => a.type === 'image' || a.type === 'capture');
@@ -775,7 +834,7 @@ export class ChatView {
       for (const img of images) {
         if (img.thumbnail || img.base64) {
           const src = img.base64 ? `data:${img.mimeType};base64,${img.base64}` : img.thumbnail!;
-          html += `<img class="msg-img-thumb" src="${src}" alt="${this.escapeHtml(img.name)}" data-att-lightbox draggable="false">`;
+          html += `<img class="msg-img-thumb" src="${src}" data-fullsrc="${src}" alt="${this.escapeHtml(img.name)}" data-att-lightbox draggable="false">`;
         }
       }
       html += '</div>';
