@@ -1,6 +1,6 @@
 [package]
 name = "screenai-desktop"
-version = "1.1.0"
+version = "1.4.0"
 description = "ScreenAI — Universal AI Screen Assistant"
 authors = ["ScreenAI"]
 license = "AGPL-3.0-or-later"
@@ -10,11 +10,13 @@ edition = "2021"
 tauri-build = { version = "1", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = [ "path-all", "window-all", "global-shortcut-all", "dialog-all", "shell-open", "fs-all", "system-tray", "global-shortcut", "process-relaunch"] }
+tauri = { version = "1", features = [ "path-all", "window-all", "global-shortcut-all", "dialog-all", "shell-open", "fs-all", "system-tray", "global-shortcut", "process-relaunch", "devtools"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["time"] }
 base64 = "0.22"
+reqwest = { version = "0.11", features = ["default-tls", "json"] }
+dirs = "5"
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 screenshots = "0.8"

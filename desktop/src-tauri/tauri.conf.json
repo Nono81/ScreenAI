@@ -4,11 +4,12 @@
     "beforeDevCommand": "cd .. && npm run dev:desktop-frontend",
     "beforeBuildCommand": "cd .. && npm run build:desktop-frontend",
     "devPath": "http://localhost:5174",
-    "distDir": "../dist-desktop"
+    "distDir": "../dist-desktop",
+    "withGlobalTauri": true
   },
   "package": {
     "productName": "ScreenAI",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "tauri": {
     "allowlist": {

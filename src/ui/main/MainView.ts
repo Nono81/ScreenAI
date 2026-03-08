@@ -37,6 +37,7 @@ export class MainView {
 
     // Chat view
     this.chatView = new ChatView(this.el, {
+      onCapture: events.onCapture,
       onCaptureFullscreen: events.onCaptureFullscreen,
       onCaptureRegion: events.onCaptureRegion,
       onConversationUpdated: events.onConversationUpdated,
@@ -60,7 +61,7 @@ export class MainView {
     this.chatView.setConversation(null);
   }
 
-  showConversation(conversation: Conversation, project: Project | null) {
+  async showConversation(conversation: Conversation, project: Project | null) {
     this.currentProject = project;
     this.welcomeEl.classList.add('hid');
 
@@ -71,7 +72,7 @@ export class MainView {
       this.projectHeaderEl.style.display = 'none';
     }
 
-    this.chatView.setConversation(conversation, project?.instructions || '');
+    await this.chatView.setConversation(conversation, project?.instructions || '');
   }
 
   attachScreenshot(dataUrl: string) {
@@ -103,13 +104,13 @@ export class MainView {
           <span class="kbd">${mod1}</span>
           <span class="kbd">${mod2}</span>
           <span class="kbd">S</span>
-          ${i.fullscreen}
+          ${i.captureFullscreen}
         </div>
         <div>
           <span class="kbd">${mod1}</span>
           <span class="kbd">${mod2}</span>
           <span class="kbd">A</span>
-          ${i.zone}
+          ${i.captureZone}
         </div>
       </div>
     `;

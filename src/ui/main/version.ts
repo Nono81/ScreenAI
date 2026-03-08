@@ -2,7 +2,7 @@
 // ScreenAI — Version Detection Utility
 // ============================================
 
-let cachedVersion = '1.1.0';
+let cachedVersion = '1.4.0';
 
 export async function initVersion(): Promise<string> {
   const isTauri = !!(window as any).__TAURI__;
@@ -10,8 +10,6 @@ export async function initVersion(): Promise<string> {
     try {
       cachedVersion = await (window as any).__TAURI__.invoke('get_app_version');
     } catch {}
-  } else if (typeof chrome !== 'undefined' && chrome.runtime?.getManifest) {
-    cachedVersion = chrome.runtime.getManifest().version;
   }
   return cachedVersion;
 }

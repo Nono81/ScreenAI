@@ -12,6 +12,7 @@ export interface AIProviderConfig {
   model: string;
   baseUrl?: string; // For Ollama or custom endpoints
   enabled: boolean;
+  webSearch?: boolean; // Injected at call time, not stored per provider
 }
 
 export const DEFAULT_MODELS: Record<AIProviderType, string> = {
@@ -32,13 +33,36 @@ export const PROVIDER_LABELS: Record<AIProviderType, string> = {
   ollama: 'Ollama (Local)',
 };
 
+// --- Memory ---
+export type MemoryCategory = 'identity' | 'profession' | 'projects' | 'preferences' | 'instructions' | 'other';
+
+export const MEMORY_CATEGORY_LABELS: Record<MemoryCategory, string> = {
+  identity: 'Identite',
+  profession: 'Profession',
+  projects: 'Projets',
+  preferences: 'Preferences',
+  instructions: 'Instructions',
+  other: 'Autres',
+};
+
+export interface MemoryFact {
+  id: string;
+  category: MemoryCategory;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+  source: 'manual' | 'auto';
+  conversationId?: string;
+}
+
 // --- Messages & Conversations ---
 export interface Annotation {
-  type: 'arrow' | 'rectangle' | 'highlight' | 'freehand' | 'text';
+  type: 'arrow' | 'rectangle' | 'highlight' | 'freehand' | 'text' | 'circle' | 'line' | 'highlighter' | 'blur' | 'number';
   points: { x: number; y: number }[];
   color: string;
   lineWidth: number;
   text?: string;
+  number?: number;
 }
 
 export interface Screenshot {
@@ -49,6 +73,58 @@ export interface Screenshot {
   region?: { x: number; y: number; w: number; h: number };
 }
 
+// --- File Attachments ---
+export type FileCategory = 'image' | 'pdf' | 'text' | 'capture' | 'unsupported';
+
+export interface MessageAttachment {
+  id: string;
+  name: string;
+  type: FileCategory;
+  size: number;
+  mimeType: string;
+  base64?: string;       // images (< 1MB full, > 1MB thumbnail), PDFs for Claude/Gemini
+  thumbnail?: string;   // 64x64 data URL for image preview
+  textContent?: string; // extracted text (text files, code, PDF fallback)
+}
+
+export interface BestOfAlternative {
+  provider: string;
+  model: string;
+  content: string;
+  responseTime: number;
+  rank: number;
+}
+
+export interface BestOfData {
+  isBestOf: true;
+  totalProviders: number;
+  judgeReason: string;
+  winner: { provider: string; model: string; responseTime: number };
+  alternatives: BestOfAlternative[];
+}
+
+export interface SummaryData {
+  originalMessageCount: number;
+  originalTokenEstimate: number;
+  summaryTokenEstimate: number;
+  compactedAt: number;
+}
+
+
+export type FeedbackReason = 'incorrect' | 'not-useful' | 'length' | 'other';
+
+export interface FeedbackEntry {
+  id: string;
+  messageId: string;
+  conversationId: string;
+  rating: 'positive' | 'negative';
+  reason?: FeedbackReason;
+  provider: string;
+  model: string;
+  query: string;
+  hasImage: boolean;
+  timestamp: number;
+}
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -57,6 +133,17 @@ export interface Message {
   timestamp: number;
   provider?: AIProviderType;
   model?: string;
+  bestOf?: BestOfData;
+  attachments?: MessageAttachment[];
+  summary?: SummaryData;
+  feedback?: 'positive' | 'negative';
+}
+
+export interface ConversationCompaction {
+  compactedAt: number;
+  originalMessageCount: number;
+  summaryMessageId: string;
+  compactedBeforeIndex: number;
 }
 
 export interface Conversation {
@@ -68,6 +155,9 @@ export interface Conversation {
   projectId?: string; // undefined = standalone conversation
   createdAt: number;
   updatedAt: number;
+  compaction?: ConversationCompaction;
+  favorite?: boolean;
+  favoritedAt?: number;
 }
 
 export interface Project {
@@ -79,6 +169,8 @@ export interface Project {
   model: string;
   createdAt: number;
   updatedAt: number;
+  favorite?: boolean;
+  favoritedAt?: number;
 }
 
 // --- Settings ---
@@ -107,6 +199,29 @@ export const LANGUAGE_PROMPTS: Record<AppLanguage, string> = {
   ko: '항상 한국어로 답변해 주세요.',
 };
 
+export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
+  'claude-opus-4-6': 200000,
+  'claude-sonnet-4-6': 200000,
+  'claude-sonnet-4-5-20250929': 200000,
+  'claude-haiku-4-5-20251001': 200000,
+  'gpt-4o': 128000,
+  'gpt-4o-mini': 128000,
+  'o1': 128000,
+  'o3-mini': 128000,
+  'gemini-2.5-pro': 1000000,
+  'gemini-2.5-flash': 1000000,
+  'gemini-2.0-flash': 1000000,
+  'mistral-large-latest': 128000,
+  'mistral-small-latest': 128000,
+  'pixtral-large-latest': 128000,
+  'grok-3': 131072,
+  'grok-3-mini': 131072,
+  'grok-2-vision-1220': 32768,
+  'llava': 8000,
+  'llama3.2-vision': 8000,
+  'bakllava': 8000,
+};
+
 export const MODEL_OPTIONS: Record<AIProviderType, string[]> = {
   claude: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'],
   openai: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3-mini'],
@@ -115,6 +230,61 @@ export const MODEL_OPTIONS: Record<AIProviderType, string[]> = {
   grok: ['grok-3', 'grok-3-mini', 'grok-2-vision-1220'],
   ollama: ['llava', 'llama3.2-vision', 'bakllava'],
 };
+
+export interface ModelOption {
+  id: string;
+  name: string;
+}
+
+export const MODEL_LISTS: Record<AIProviderType, ModelOption[]> = {
+  claude: [
+    { id: 'claude-opus-4-6', name: 'Opus 4.6' },
+    { id: 'claude-sonnet-4-6', name: 'Sonnet 4.6' },
+    { id: 'claude-sonnet-4-5-20250929', name: 'Sonnet 4.5' },
+    { id: 'claude-haiku-4-5-20251001', name: 'Haiku 4.5' },
+  ],
+  openai: [
+    { id: 'gpt-4o', name: 'GPT-4o' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
+    { id: 'o1', name: 'o1' },
+    { id: 'o3-mini', name: 'o3-mini' },
+  ],
+  gemini: [
+    { id: 'gemini-2.5-pro', name: '2.5 Pro' },
+    { id: 'gemini-2.5-flash', name: '2.5 Flash' },
+    { id: 'gemini-2.0-flash', name: '2.0 Flash' },
+  ],
+  mistral: [
+    { id: 'mistral-large-latest', name: 'Large' },
+    { id: 'mistral-small-latest', name: 'Small' },
+    { id: 'pixtral-large-latest', name: 'Pixtral Large' },
+  ],
+  grok: [
+    { id: 'grok-3', name: 'Grok 3' },
+    { id: 'grok-3-mini', name: 'Grok 3 mini' },
+    { id: 'grok-2-vision-1220', name: 'Grok 2 Vision' },
+  ],
+  ollama: [], // Free text input
+};
+
+export const PROVIDER_SHORT_LABELS: Record<AIProviderType, string> = {
+  claude: 'Claude',
+  openai: 'GPT',
+  gemini: 'Gemini',
+  mistral: 'Mistral',
+  grok: 'Grok',
+  ollama: 'Ollama',
+};
+
+export interface ModelPreferences {
+  lastProvider: string;
+  lastModels: Record<string, string>;
+}
+
+export interface UserTier {
+  type: 'free' | 'premium' | 'byok' | 'premium+byok';
+  quota?: { used: number; max: number };
+}
 
 export interface ShortcutConfig {
   captureFullscreen: string;
@@ -126,6 +296,7 @@ export interface ShortcutConfig {
 export interface AppSettings {
   defaultProvider: AIProviderType;
   providers: Record<AIProviderType, AIProviderConfig>;
+  apiKeysEnabled: boolean;
   hotkeyFullscreen: string;
   hotkeyRegion: string;
   theme: AppTheme;
@@ -133,12 +304,24 @@ export interface AppSettings {
   language: AppLanguage;
   systemPrompt: string;
   shortcuts?: ShortcutConfig;
+  webSearch: boolean;
+  memoryEnabled: boolean;
+  memoryAutoDetect: boolean;
 }
 
-export const DEFAULT_SYSTEM_PROMPT = 'You are a visual assistant. The user shares annotated screenshots to get help. Analyze the image and annotations (arrows, highlights, rectangles) to understand precisely what the user is showing you. Respond clearly and actionably.';
+export const DEFAULT_SYSTEM_PROMPT = `Tu es ScreenAI, un assistant intelligent polyvalent. Tu peux analyser des captures d'ecran et images, rechercher des informations sur le web, repondre a toutes sortes de questions, et aider avec du code, de la redaction, et tout type de tache.
+
+Regles de reponse :
+- N'utilise jamais d'emojis dans tes reponses
+- Sois direct et concis, va droit au but
+- Ne fais pas de listes d'hypotheses quand tu n'es pas sur -- dis simplement que tu n'es pas certain
+- Utilise un ton professionnel mais accessible
+- Structure tes reponses avec des titres et paragraphes si la reponse est longue, sinon reste simple
+- Reponds dans la langue de l'utilisateur`;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: 'claude',
+  apiKeysEnabled: true,
   providers: {
     claude: { type: 'claude', label: 'Claude', apiKey: '', model: DEFAULT_MODELS.claude, enabled: false },
     openai: { type: 'openai', label: 'OpenAI', apiKey: '', model: DEFAULT_MODELS.openai, enabled: false },
@@ -159,6 +342,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     highlight: 'Alt+Shift+H',
     search: 'Ctrl+K',
   },
+  webSearch: true,
+  memoryEnabled: true,
+  memoryAutoDetect: true,
 };
 
 // --- Events ---

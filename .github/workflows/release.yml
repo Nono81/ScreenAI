@@ -131,11 +131,6 @@ jobs:
             - **Windows**: `.msi` installer
             - **Linux**: `.deb` package / `.AppImage`
 
-            ### Chrome Extension
-            Install from the [Chrome Web Store](#) or load the extension manually from the `dist/` folder.
-
-            ### Firefox Add-on
-            Install from [Firefox Add-ons](#) or load temporarily from `dist-firefox/`.
           releaseDraft: false
           prerelease: false
           updaterJsonKeepUniversal: true

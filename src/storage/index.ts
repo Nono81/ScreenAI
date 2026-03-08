@@ -6,9 +6,11 @@ import type { Conversation, Project, AppSettings, Message } from '../types';
 import { DEFAULT_SETTINGS, generateId } from '../types';
 
 const DB_NAME = 'screenai';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 const STORE_CONVERSATIONS = 'conversations';
 const STORE_PROJECTS = 'projects';
+const STORE_MEMORY = 'memory';
+const STORE_FEEDBACK = 'feedback';
 
 // ============================================
 // IndexedDB Manager
@@ -30,6 +32,16 @@ class Database {
         if (!db.objectStoreNames.contains(STORE_PROJECTS)) {
           const s = db.createObjectStore(STORE_PROJECTS, { keyPath: 'id' });
           s.createIndex('updatedAt', 'updatedAt', { unique: false });
+        }
+        if (!db.objectStoreNames.contains(STORE_MEMORY)) {
+          const s = db.createObjectStore(STORE_MEMORY, { keyPath: 'id' });
+          s.createIndex('createdAt', 'createdAt', { unique: false });
+          s.createIndex('category', 'category', { unique: false });
+        }
+        if (!db.objectStoreNames.contains(STORE_FEEDBACK)) {
+          const s = db.createObjectStore(STORE_FEEDBACK, { keyPath: 'id' });
+          s.createIndex('timestamp', 'timestamp', { unique: false });
+          s.createIndex('conversationId', 'conversationId', { unique: false });
         }
       };
       req.onsuccess = () => { this.db = req.result; resolve(this.db); };
@@ -71,6 +83,26 @@ class Database {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(store, 'readwrite');
       tx.objectStore(store).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getAllByIndex<T>(store: string, index: string): Promise<T[]> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readonly');
+      const req = tx.objectStore(store).index(index).getAll();
+      req.onsuccess = () => resolve(req.result as T[]);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async clearStore(store: string): Promise<void> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readwrite');
+      tx.objectStore(store).clear();
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -143,7 +175,7 @@ export const conversationStore = {
     if (!c) throw new Error(`Conversation ${id} not found`);
     c.messages.push(msg);
     c.updatedAt = Date.now();
-    if (c.messages.filter(m => m.role === 'user').length === 1 && msg.role === 'user' && msg.content) {
+    if (c.messages.filter(m => m.role === 'user').length === 1 && msg.role === 'user' && msg.content && c.title === 'New conversation') {
       c.title = msg.content.slice(0, 60) + (msg.content.length > 60 ? '…' : '');
     }
     await db.put(STORE_CONVERSATIONS, c);
@@ -175,21 +207,82 @@ export const conversationStore = {
 export const settingsStore = {
   key: 'screenai_settings',
   async get(): Promise<AppSettings> {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        return new Promise(r => chrome.storage.local.get(this.key, (res: any) => r(res[this.key] || { ...DEFAULT_SETTINGS })));
-      }
-    } catch {}
     const raw = localStorage.getItem(this.key);
     if (raw) try { return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }; } catch {}
     return { ...DEFAULT_SETTINGS };
   },
   async save(s: AppSettings): Promise<void> {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        return new Promise(r => chrome.storage.local.set({ [this.key]: s }, r));
-      }
-    } catch {}
     localStorage.setItem(this.key, JSON.stringify(s));
   },
+};
+
+// ============================================
+// Memory Facts
+// ============================================
+import type { MemoryFact, MemoryCategory, FeedbackEntry } from '../types';
+import { generateId as genId } from '../types';
+
+export const memoryStore = {
+  async getAll(): Promise<MemoryFact[]> {
+    return db.getAllByIndex<MemoryFact>(STORE_MEMORY, 'createdAt');
+  },
+
+  async add(data: { category: MemoryCategory; content: string; source?: 'manual' | 'auto'; conversationId?: string }): Promise<MemoryFact> {
+    const fact: MemoryFact = {
+      id: genId(),
+      category: data.category,
+      content: data.content.slice(0, 200),
+      source: data.source || 'manual',
+      conversationId: data.conversationId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await db.put(STORE_MEMORY, fact);
+    return fact;
+  },
+
+  async update(id: string, content: string, category?: MemoryCategory): Promise<void> {
+    const facts = await this.getAll();
+    const fact = facts.find(f => f.id === id);
+    if (!fact) return;
+    const updated = { ...fact, content: content.slice(0, 200), updatedAt: Date.now() };
+    if (category) updated.category = category;
+    await db.put(STORE_MEMORY, updated);
+  },
+
+  delete: (id: string) => db.del(STORE_MEMORY, id),
+
+  deleteAll: () => db.clearStore(STORE_MEMORY),
+
+  async search(query: string): Promise<MemoryFact[]> {
+    const q = query.toLowerCase();
+    return (await this.getAll()).filter(f => f.content.toLowerCase().includes(q));
+  },
+};
+
+// ============================================
+// Feedback
+// ============================================
+export const feedbackStore = {
+  async getAll(): Promise<FeedbackEntry[]> {
+    return db.getAllByIndex<FeedbackEntry>(STORE_FEEDBACK, 'timestamp');
+  },
+
+  async add(entry: Omit<FeedbackEntry, 'id'>): Promise<FeedbackEntry> {
+    const full: FeedbackEntry = { ...entry, id: genId() } as FeedbackEntry;
+    await db.put(STORE_FEEDBACK, full);
+    return full;
+  },
+
+  async getByMessage(messageId: string): Promise<FeedbackEntry | undefined> {
+    const all = await this.getAll();
+    return all.find(e => e.messageId === messageId);
+  },
+
+  async getByConversation(conversationId: string): Promise<FeedbackEntry[]> {
+    const all = await this.getAll();
+    return all.filter(e => e.conversationId === conversationId);
+  },
+
+  delete: (id: string) => db.del(STORE_FEEDBACK, id),
 };

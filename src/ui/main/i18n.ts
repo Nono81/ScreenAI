@@ -101,6 +101,17 @@ export interface Translations {
   upToDate: string;
   about: string;
 
+  // Capture
+  videoComingSoon: string;
+
+  // OCR
+  ocrExtracting: string;
+  ocrExtracted: string;
+  ocrNoText: string;
+  ocrCopyText: string;
+  ocrCopied: string;
+  ocrError: string;
+
   // Language prompts
   langPrompt: string;
 }
@@ -203,6 +214,17 @@ const en: Translations = {
   upToDate: "You're up to date!",
   about: "About",
 
+  // Capture
+  videoComingSoon: "Coming soon",
+
+  // OCR
+  ocrExtracting: "Extracting text...",
+  ocrExtracted: "Extracted text (OCR)",
+  ocrNoText: "No text detected in the image.",
+  ocrCopyText: "Copy text",
+  ocrCopied: "Copied!",
+  ocrError: "OCR Error",
+
   // Language prompts
   langPrompt: "Always respond in English.",
 };
@@ -248,7 +270,7 @@ const fr: Translations = {
   shortcuts: "Raccourcis clavier",
   editShortcut: "Cliquer pour modifier",
   pressNewShortcut: "Appuyez sur le nouveau raccourci...",
-  captureFullscreen: "Capture plein écran",
+  captureFullscreen: "Capture d'écran",
   captureZone: "Capture zone",
   highlight: "Surligner",
   search: "Rechercher",
@@ -304,6 +326,17 @@ const fr: Translations = {
   updateError: "Impossible de vérifier les mises à jour",
   upToDate: "Vous êtes à jour !",
   about: "À propos",
+
+  // Capture
+  videoComingSoon: "Bientot disponible",
+
+  // OCR
+  ocrExtracting: "Extraction du texte en cours...",
+  ocrExtracted: "Texte extrait (OCR)",
+  ocrNoText: "Aucun texte detecte dans l'image.",
+  ocrCopyText: "Copier le texte",
+  ocrCopied: "Copie !",
+  ocrError: "Erreur OCR",
 
   // Language prompts
   langPrompt: "Réponds toujours en français.",

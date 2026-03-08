@@ -2,9 +2,9 @@
 // ScreenAI — Settings Panel (slide-over)
 // ============================================
 
-import type { AppSettings, AIProviderType } from '../../types';
-import { PROVIDER_LABELS, MODEL_OPTIONS, LANGUAGE_LABELS, type AppLanguage } from '../../types';
-import { settingsStore } from '../../storage';
+import type { AppSettings, AIProviderType, MemoryFact, MemoryCategory } from '../../types';
+import { PROVIDER_LABELS, LANGUAGE_LABELS, MEMORY_CATEGORY_LABELS, type AppLanguage } from '../../types';
+import { settingsStore, memoryStore } from '../../storage';
 import { ICONS } from './icons';
 import { t, setUILanguage, type UILanguage } from './i18n';
 import { getVersion } from './version';
@@ -19,6 +19,7 @@ export class SettingsPanel {
   private el: HTMLElement;
   private settings: AppSettings | null = null;
   private isOpen = false;
+  private memoryFacts: MemoryFact[] = [];
 
   constructor(private container: HTMLElement, private events: SettingsPanelEvents) {
     this.el = document.createElement('div');
@@ -33,6 +34,7 @@ export class SettingsPanel {
 
   async open() {
     this.settings = await settingsStore.get();
+    this.memoryFacts = await memoryStore.getAll();
     this.render();
     requestAnimationFrame(() => {
       this.el.classList.add('op');
@@ -67,18 +69,9 @@ export class SettingsPanel {
 
         <div class="sob">
 
-          <!-- AI -->
+          <!-- Language & Web Search -->
           <div class="ss">
             <div class="sst">${i.aiSection}</div>
-
-            <div class="sr">
-              <div class="s-l"><div class="sl">${i.defaultAI}</div></div>
-              <select class="sel" data-setting="defaultProvider">
-                ${(Object.keys(PROVIDER_LABELS) as AIProviderType[]).map(k =>
-                  `<option value="${k}"${k === s.defaultProvider ? ' selected' : ''}>${PROVIDER_LABELS[k]}</option>`
-                ).join('')}
-              </select>
-            </div>
 
             <div class="sr">
               <div class="s-l"><div class="sl">${i.responseLang}</div></div>
@@ -89,7 +82,35 @@ export class SettingsPanel {
               </select>
             </div>
 
-            ${this.renderProviderCards(s)}
+            <div class="sr">
+              <div class="s-l">
+                <div class="sl">Web Search</div>
+                <div class="sd">Claude: native tool &mdash; Others: DuckDuckGo (auto-injected)</div>
+              </div>
+              <label class="tgl">
+                <input type="checkbox" data-setting="webSearch" ${s.webSearch ? 'checked' : ''}>
+                <span class="tgt"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- API Keys -->
+          <div class="ss">
+            <div class="api-keys-wrapper">
+              <div class="api-keys-header" data-action="toggle-api-keys">
+                <div>
+                  <div class="api-keys-title">Mes cles API</div>
+                  <div class="api-keys-desc">Utilisez vos propres cles pour un acces illimite a tous les modeles IA.</div>
+                </div>
+                <label class="tgl">
+                  <input type="checkbox" data-setting="apiKeysEnabled" ${s.apiKeysEnabled !== false ? 'checked' : ''}>
+                  <span class="tgt"></span>
+                </label>
+              </div>
+              <div class="api-keys-content${s.apiKeysEnabled !== false ? ' expanded' : ''}" data-api-keys-content>
+                ${this.renderProviderCards(s)}
+              </div>
+            </div>
           </div>
 
           <!-- Personal Preferences -->
@@ -97,6 +118,32 @@ export class SettingsPanel {
             <div class="sst">${i.personalPreferences}</div>
             <div class="sd" style="margin-bottom:8px">${i.personalPreferencesDesc}</div>
             <textarea class="pta" rows="3" data-setting="systemPrompt" placeholder="${i.personalPreferencesPlaceholder}">${this.escapeHtml(s.systemPrompt)}</textarea>
+          </div>
+
+          <!-- Memory -->
+          <div class="ss">
+            <div class="sst">Memoire</div>
+            <div class="sr">
+              <div class="s-l">
+                <div class="sl">Activer la memoire</div>
+                <div class="sd">Inject les souvenirs dans chaque conversation</div>
+              </div>
+              <label class="tgl">
+                <input type="checkbox" data-setting="memoryEnabled" ${s.memoryEnabled !== false ? 'checked' : ''}>
+                <span class="tgt"></span>
+              </label>
+            </div>
+            <div class="sr">
+              <div class="s-l">
+                <div class="sl">Detection automatique</div>
+                <div class="sd">L IA detecte automatiquement les faits a memoriser</div>
+              </div>
+              <label class="tgl">
+                <input type="checkbox" data-setting="memoryAutoDetect" ${s.memoryAutoDetect !== false ? 'checked' : ''}>
+                <span class="tgt"></span>
+              </label>
+            </div>
+            ${this.renderMemoryFacts()}
           </div>
 
           <!-- Appearance -->
@@ -167,18 +214,17 @@ export class SettingsPanel {
     return providers.map(type => {
       const config = s.providers[type];
       const isOllama = type === 'ollama';
-      const models = MODEL_OPTIONS[type] || [];
 
       return `
-        <div class="pc" data-provider="${type}">
-          <div class="pch">
-            <span class="pcn">${PROVIDER_LABELS[type]}</span>
+        <div class="provider-card" data-provider="${type}">
+          <div class="provider-card-header">
+            <span class="provider-card-name">${PROVIDER_LABELS[type]}</span>
             <label class="tgl">
               <input type="checkbox" data-toggle-provider="${type}" ${config.enabled ? 'checked' : ''}>
               <span class="tgt"></span>
             </label>
           </div>
-          <div class="pcf${config.enabled ? '' : ' disabled'}" data-provider-fields="${type}">
+          <div class="provider-card-fields${config.enabled ? '' : ' disabled'}" data-provider-fields="${type}">
             ${isOllama ? `
               <div>
                 <div class="fl">${i.serverUrl}</div>
@@ -191,13 +237,12 @@ export class SettingsPanel {
             ` : `
               <div>
                 <div class="fl">${i.apiKey}</div>
-                <input class="si" type="password" data-provider-key="${type}" value="${config.apiKey}" placeholder="${this.getKeyPlaceholder(type)}">
-              </div>
-              <div>
-                <div class="fl">${i.model}</div>
-                <select class="sel" data-provider-model="${type}">
-                  ${models.map(m => `<option value="${m}"${m === config.model ? ' selected' : ''}>${m}</option>`).join('')}
-                </select>
+                <div class="api-key-input-wrapper">
+                  <input class="api-key-input" type="password" data-provider-key="${type}" value="${config.apiKey}" placeholder="${this.getKeyPlaceholder(type)}">
+                  <button class="api-key-toggle-visibility" type="button" data-toggle-key-vis="${type}" title="Afficher/Masquer">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
               </div>
             `}
           </div>
@@ -216,9 +261,8 @@ export class SettingsPanel {
     };
 
     const items = [
-      { key: 'captureFullscreen', label: i.captureFullscreen, shortcut: shortcuts.captureFullscreen || 'Alt+Shift+S' },
-      { key: 'captureRegion', label: i.captureZone, shortcut: shortcuts.captureRegion || 'Alt+Shift+A' },
-      { key: 'highlight', label: i.highlight, shortcut: shortcuts.highlight || 'Alt+Shift+H' },
+      { key: 'captureFullscreen', label: `Capture d'ecran`, shortcut: shortcuts.captureFullscreen || 'Alt+Shift+S' },
+      { key: 'captureRegion', label: 'Capture zone (directe)', shortcut: shortcuts.captureRegion || 'Alt+Shift+A' },
       { key: 'search', label: i.search, shortcut: shortcuts.search || 'Ctrl+K' },
     ];
 
@@ -230,6 +274,24 @@ export class SettingsPanel {
         </div>
       </div>
     `).join('');
+  }
+
+  private renderMemoryFacts(): string {
+    const facts = this.memoryFacts;
+    let html = '';
+    if (facts.length > 0) {
+      html += '<div class="mem-facts-list">';
+      for (const f of facts) {
+        const cat = MEMORY_CATEGORY_LABELS[f.category] || f.category;
+        html += `<div class="mem-fact-row"><div class="mem-fact-content"><span class="mem-fact-cat">${this.escapeHtml(cat)}</span><span class="mem-fact-text">${this.escapeHtml(f.content)}</span></div><button class="mem-fact-del" data-delete-fact="${f.id}" title="Supprimer">&#10005;</button></div>`;
+      }
+      html += '</div>';
+      html += '<div class="mem-add-row" style="margin-top:6px"><button class="mem-add-btn" data-action="mem-clear-all" style="background:transparent;color:var(--err);border:1px solid var(--err)">Tout effacer</button></div>';
+    } else {
+      html += '<div class="sd" style="margin-top:4px">Aucun souvenir enregistre.</div>';
+    }
+    html += '<div class="mem-add-row"><input class="si" type="text" data-mem-add-input placeholder="Ajouter un souvenir..." style="flex:1"><button class="mem-add-btn" data-action="mem-add">Ajouter</button></div>';
+    return html;
   }
 
   private getKeyPlaceholder(type: AIProviderType): string {
@@ -270,6 +332,18 @@ export class SettingsPanel {
       });
     });
 
+    // API keys master toggle
+    const apiKeysToggle = this.el.querySelector<HTMLInputElement>('[data-setting="apiKeysEnabled"]');
+    if (apiKeysToggle) {
+      apiKeysToggle.addEventListener('change', () => {
+        const content = this.el.querySelector('[data-api-keys-content]');
+        if (content) {
+          content.classList.toggle('expanded', apiKeysToggle.checked);
+        }
+        if (this.settings) this.settings.apiKeysEnabled = apiKeysToggle.checked;
+      });
+    }
+
     // Provider toggles
     this.el.querySelectorAll('[data-toggle-provider]').forEach(el => {
       el.addEventListener('change', () => {
@@ -280,6 +354,23 @@ export class SettingsPanel {
           fields.classList.toggle('disabled', !enabled);
         }
         if (this.settings) this.settings.providers[type].enabled = enabled;
+      });
+    });
+
+    // Eye icon: toggle password visibility
+    this.el.querySelectorAll('[data-toggle-key-vis]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const type = (btn as HTMLElement).dataset.toggleKeyVis!;
+        const input = this.el.querySelector<HTMLInputElement>(`[data-provider-key="${type}"]`);
+        if (input) {
+          const isPassword = input.type === 'password';
+          input.type = isPassword ? 'text' : 'password';
+          // Update eye icon
+          (btn as HTMLElement).innerHTML = isPassword
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        }
       });
     });
 
@@ -298,6 +389,35 @@ export class SettingsPanel {
     this.el.querySelectorAll('[data-shortcut-edit]').forEach(el => {
       el.addEventListener('click', () => this.startEditingShortcut(el as HTMLElement));
     });
+
+    // Memory: delete fact
+    this.el.querySelectorAll('[data-delete-fact]').forEach(el => {
+      el.addEventListener('click', async () => {
+        const id = (el as HTMLElement).dataset.deleteFact!;
+        await memoryStore.delete(id);
+        this.memoryFacts = this.memoryFacts.filter(f => f.id !== id);
+        this.render();
+      });
+    });
+
+    // Memory: add fact
+    this.el.querySelector('[data-action="mem-add"]')?.addEventListener('click', async () => {
+      const input = this.el.querySelector<HTMLInputElement>('[data-mem-add-input]');
+      if (!input) return;
+      const content = input.value.trim();
+      if (!content) return;
+      const fact = await memoryStore.add({ category: 'other', content, source: 'manual' });
+      this.memoryFacts.push(fact);
+      this.render();
+    });
+
+    // Memory: clear all
+    this.el.querySelector('[data-action="mem-clear-all"]')?.addEventListener('click', async () => {
+      if (!confirm('Effacer tous les souvenirs ?')) return;
+      await memoryStore.deleteAll();
+      this.memoryFacts = [];
+      this.render();
+    });
   }
 
   private startEditingShortcut(el: HTMLElement) {
@@ -305,12 +425,20 @@ export class SettingsPanel {
     const key = el.dataset.shortcutEdit!;
     el.innerHTML = `<span class="kbd kbd-recording">${i.pressNewShortcut}</span>`;
 
-    const handler = (e: KeyboardEvent) => {
+    const handler = async (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
       // Ignore modifier-only presses
       if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+      // Escape cancels editing
+      if (e.key === 'Escape') {
+        const current = this.settings?.shortcuts?.[key as keyof typeof this.settings.shortcuts] || '';
+        el.innerHTML = current ? current.split('+').map(k => `<span class="kbd">${k}</span>`).join('') : '';
+        document.removeEventListener('keydown', handler, true);
+        return;
+      }
 
       const parts: string[] = [];
       if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
@@ -318,7 +446,29 @@ export class SettingsPanel {
       if (e.shiftKey) parts.push('Shift');
       parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
 
+      // Must have at least one modifier
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        el.innerHTML = `<span class="kbd kbd-recording" style="color:#ff6b6b">Ajoutez un modificateur (Ctrl, Alt, Shift)</span>`;
+        return;
+      }
+
       const shortcut = parts.join('+');
+
+      // Check for conflicts with other shortcuts
+      if (this.settings?.shortcuts) {
+        for (const [k, v] of Object.entries(this.settings.shortcuts)) {
+          if (k !== key && v === shortcut) {
+            el.innerHTML = `<span class="kbd kbd-recording" style="color:#ff6b6b">Conflit avec un autre raccourci</span>`;
+            setTimeout(() => {
+              el.innerHTML = `<span class="kbd kbd-recording">${i.pressNewShortcut}</span>`;
+            }, 1500);
+            return;
+          }
+        }
+      }
+
+      // Get old shortcut before updating
+      const oldShortcut = this.settings?.shortcuts?.[key as keyof typeof this.settings.shortcuts] || '';
 
       // Update settings
       if (this.settings) {
@@ -333,9 +483,43 @@ export class SettingsPanel {
         (this.settings.shortcuts as any)[key] = shortcut;
       }
 
+      // Update global shortcut in Tauri for capture shortcuts
+      const globalActions = ['captureFullscreen', 'captureRegion'];
+      if (globalActions.includes(key)) {
+        const tauri = (window as any).__TAURI__;
+        if (tauri?.invoke) {
+          // Convert shortcut format: Tauri uses "Alt+Shift+S" style
+          const action = key === 'captureRegion' ? 'captureRegion' : 'captureFullscreen';
+          try {
+            await tauri.invoke('update_shortcut', {
+              oldShortcut: oldShortcut,
+              newShortcut: shortcut,
+              action,
+            });
+          } catch (err) {
+            console.error('Failed to update global shortcut:', err);
+            el.innerHTML = `<span class="kbd kbd-recording" style="color:#ff6b6b">Erreur: raccourci non disponible</span>`;
+            // Revert settings
+            if (this.settings?.shortcuts) {
+              (this.settings.shortcuts as any)[key] = oldShortcut;
+            }
+            setTimeout(() => {
+              el.innerHTML = oldShortcut ? oldShortcut.split('+').map(k => `<span class="kbd">${k}</span>`).join('') : '';
+            }, 2000);
+            document.removeEventListener('keydown', handler, true);
+            return;
+          }
+        }
+      }
+
       // Update display
       el.innerHTML = shortcut.split('+').map(k => `<span class="kbd">${k}</span>`).join('');
       document.removeEventListener('keydown', handler, true);
+
+      // Auto-save shortcut change
+      if (this.settings) {
+        await settingsStore.save(this.settings);
+      }
     };
 
     document.addEventListener('keydown', handler, true);
@@ -347,16 +531,6 @@ export class SettingsPanel {
     const btnEl = this.el.querySelector('[data-action="check-update"]') as HTMLButtonElement;
 
     const isTauri = !!(window as any).__TAURI__;
-    const isExtension = typeof chrome !== 'undefined' && !!chrome.runtime?.id;
-
-    if (isExtension) {
-      const isFirefox = navigator.userAgent.includes('Firefox');
-      const storeUrl = isFirefox
-        ? 'https://addons.mozilla.org/firefox/addon/screenai/'
-        : 'https://chrome.google.com/webstore/detail/screenai/';
-      window.open(storeUrl, '_blank');
-      return;
-    }
 
     if (!isTauri) {
       if (statusEl) {
@@ -425,14 +599,23 @@ export class SettingsPanel {
     const i = t();
 
     // Collect values
-    const defaultProvider = this.el.querySelector<HTMLSelectElement>('[data-setting="defaultProvider"]');
-    if (defaultProvider) this.settings.defaultProvider = defaultProvider.value as AIProviderType;
-
     const language = this.el.querySelector<HTMLSelectElement>('[data-setting="language"]');
     if (language) this.settings.language = language.value as any;
 
     const systemPrompt = this.el.querySelector<HTMLTextAreaElement>('[data-setting="systemPrompt"]');
     if (systemPrompt) this.settings.systemPrompt = systemPrompt.value;
+
+    const wsToggle = this.el.querySelector<HTMLInputElement>('[data-setting="webSearch"]');
+    if (wsToggle) this.settings.webSearch = wsToggle.checked;
+
+    const apiKeysToggle = this.el.querySelector<HTMLInputElement>('[data-setting="apiKeysEnabled"]');
+    if (apiKeysToggle) this.settings.apiKeysEnabled = apiKeysToggle.checked;
+
+    const memEnabled = this.el.querySelector<HTMLInputElement>('[data-setting="memoryEnabled"]');
+    if (memEnabled) this.settings.memoryEnabled = memEnabled.checked;
+
+    const memAutoDetect = this.el.querySelector<HTMLInputElement>('[data-setting="memoryAutoDetect"]');
+    if (memAutoDetect) this.settings.memoryAutoDetect = memAutoDetect.checked;
 
     // Provider configs
     const providers: AIProviderType[] = ['claude', 'openai', 'gemini', 'mistral', 'grok', 'ollama'];
@@ -448,10 +631,12 @@ export class SettingsPanel {
       } else {
         const key = this.el.querySelector<HTMLInputElement>(`[data-provider-key="${type}"]`);
         if (key) this.settings.providers[type].apiKey = key.value;
-        const model = this.el.querySelector<HTMLSelectElement>(`[data-provider-model="${type}"]`);
-        if (model) this.settings.providers[type].model = model.value;
       }
     }
+
+    // Set defaultProvider to the first enabled one
+    const firstEnabled = providers.find(p => this.settings!.providers[p].enabled);
+    if (firstEnabled) this.settings.defaultProvider = firstEnabled;
 
     await settingsStore.save(this.settings);
 
