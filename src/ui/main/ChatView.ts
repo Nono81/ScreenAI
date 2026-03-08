@@ -104,7 +104,7 @@ export class ChatView {
         <div class="ch-t">
           <h3>${this.escapeHtml(c.title)}</h3>
         </div>
-        ${this.memoryCount > 0 && this.settings?.memoryEnabled !== false ? `<span class="mem-indicator" title="${this.memoryCount} souvenir(s) actif(s)">&#129504; ${this.memoryCount}</span>` : ''}
+        ${this.memoryCount > 0 && this.settings?.memoryEnabled !== false ? `<span class="mem-indicator" title="${this.memoryCount} souvenir(s) actif(s)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;color:var(--t2)"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> ${this.memoryCount}</span>` : ''}
         <span data-context-indicator></span>
         <button class="ib" data-action="edit-conv" title="Edit">
           ${ICONS.edit}
@@ -483,7 +483,7 @@ export class ChatView {
           const facts = await memoryStore.getAll();
           this.memoryCount = facts.length;
           const indicator = this.el.querySelector('.mem-indicator');
-          if (indicator) indicator.textContent = this.memoryCount > 0 ? `🧠 ${this.memoryCount}` : '';
+          if (indicator) indicator.innerHTML = this.memoryCount > 0 ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;color:var(--t2)"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> ${this.memoryCount}` : '';
         }
       }
       return;
@@ -722,7 +722,7 @@ export class ChatView {
         if (saved > 0) {
           this.memoryCount += saved;
           const indicator = this.el.querySelector('.mem-indicator');
-          if (indicator) indicator.innerHTML = `&#129504; ${this.memoryCount}`;
+          if (indicator) indicator.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;color:var(--t2)"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> ${this.memoryCount}`;
           this.showToast(`${saved} souvenir(s) detecte(s) automatiquement`);
         }
       }

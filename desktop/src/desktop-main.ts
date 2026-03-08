@@ -147,6 +147,8 @@ function showCaptureToolbar(screenshotUrl: string) {
       </select>
     </div>
     <div class="scb-sep"></div>
+    <button class="scb scb-off" title="Bientot disponible" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span>Video</span></button>
+    <div class="scb-sep"></div>
     <button class="scb-go">Capturer</button>
     <button class="scb-close" title="Annuler (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   `;

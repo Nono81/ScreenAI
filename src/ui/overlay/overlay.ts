@@ -575,14 +575,14 @@ export class ScreenAIOverlay {
   }
 
   private showColorInfo(hex: string, r: number, g: number, b: number) {
+    const shadow = this.root.shadowRoot!;
     // Remove existing popover
-    this.root.shadowRoot!.querySelector('.sai-color-info')?.remove();
+    shadow.querySelector('.sai-color-info')?.remove();
 
     const rgbStr = `${r}, ${g}, ${b}`;
-    const panel = this.root.shadowRoot!.getElementById('sai-panel')!;
     const popover = document.createElement('div');
     popover.className = 'sai-color-info';
-    popover.style.cssText = 'position:absolute;bottom:12px;left:12px;right:12px;background:#1a1a2e;border:1px solid #2a2a4a;border-radius:10px;padding:12px;z-index:10;';
+    popover.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;border:1px solid #2a2a4a;border-radius:10px;padding:12px;z-index:9999;min-width:220px;';
     popover.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <div style="width:36px;height:36px;border-radius:8px;background:${hex};border:2px solid rgba(255,255,255,0.2);"></div>
@@ -604,8 +604,7 @@ export class ScreenAIOverlay {
       </div>
     `;
 
-    panel.style.position = 'relative';
-    panel.appendChild(popover);
+    shadow.appendChild(popover);
 
     // Copy on click
     popover.querySelectorAll('[data-copy]').forEach(el => {
@@ -618,6 +617,11 @@ export class ScreenAIOverlay {
 
     popover.querySelector('#sai-use-color')?.addEventListener('click', () => {
       this.annotationCanvas?.setColor(hex);
+      // Update color dot in toolbar
+      if (this.toolbarContainer) {
+        const dot = this.toolbarContainer.querySelector('#sai-color-dot') as HTMLElement;
+        if (dot) dot.style.background = hex;
+      }
       this.annotationCanvas?.setTool('pointer');
       this.updateToolbarActive('pointer');
       popover.remove();
@@ -1502,6 +1506,8 @@ export class ScreenAIOverlay {
         max-height: 100%;
         object-fit: contain;
         position: relative;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
       }
 
       /* ---- Crop overlay ---- */

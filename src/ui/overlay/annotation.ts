@@ -28,6 +28,7 @@ export class AnnotationCanvas {
 
   public onToolChange: ((tool: AnnotationTool) => void) | null = null;
   public onColorPicked: ((hex: string, r: number, g: number, b: number) => void) | null = null;
+  private cropHistory: { bgSrc: string; width: number; height: number; annotations: Annotation[]; nextNumber: number }[] = [];
 
   constructor(
     private container: HTMLElement,
@@ -38,8 +39,9 @@ export class AnnotationCanvas {
     this.canvas = document.createElement('canvas');
     this.canvas.width = width;
     this.canvas.height = height;
-    this.canvas.style.cssText = 'display:block;max-width:100%;max-height:100%;cursor:default;';
+    this.canvas.style.cssText = 'display:block;max-width:100%;max-height:100%;cursor:default;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;';
     this.ctx = this.canvas.getContext('2d')!;
+    this.ctx.imageSmoothingEnabled = false;
     this.bgImage = new Image();
     this.bgImage.src = screenshotUrl;
 
@@ -58,7 +60,7 @@ export class AnnotationCanvas {
       tool === 'text' ? 'text' :
       tool === 'eraser' ? 'not-allowed' :
       tool === 'number' ? 'copy' :
-      tool === 'pipette' ? 'crosshair' :
+      tool === 'pipette' ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 22l1-1h3l9-9'/%3E%3Cpath d='M3 21l9-9'/%3E%3Ccircle cx='18' cy='6' r='3'/%3E%3C/svg%3E") 2 22, crosshair` :
       'default';
   }
 
@@ -74,11 +76,31 @@ export class AnnotationCanvas {
     return [...this.annotations];
   }
 
-  canUndo(): boolean { return this.annotations.length > 0; }
+  canUndo(): boolean { return this.annotations.length > 0 || this.cropHistory.length > 0; }
   canRedo(): boolean { return this.redoStack.length > 0; }
 
   undo() {
-    if (!this.annotations.length) return;
+    if (!this.annotations.length) {
+      // If no annotations to undo, try undoing a crop
+      if (this.cropHistory.length > 0) {
+        const prev = this.cropHistory.pop()!;
+        const img = new Image();
+        img.onload = () => {
+          this.bgImage = img;
+          this.canvas.width = prev.width;
+          this.canvas.height = prev.height;
+          this.width = prev.width;
+          this.height = prev.height;
+          this.annotations = prev.annotations;
+          this.nextNumber = prev.nextNumber;
+          this.redoStack = [];
+          this.screenshotUrl = prev.bgSrc;
+          this.redraw();
+        };
+        img.src = prev.bgSrc;
+      }
+      return;
+    }
     const removed = this.annotations.pop()!;
     if (removed.type === 'number') {
       this.nextNumber = Math.max(1, this.nextNumber - 1);
@@ -500,18 +522,15 @@ export class AnnotationCanvas {
       case 'text': {
         if (!text || points.length < 1) break;
         const fontSize = 18 + lineWidth * 2;
-        ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
-        const metrics = ctx.measureText(text);
-        const padding = 6;
-        ctx.globalAlpha = 0.85;
-        ctx.fillStyle = '#000';
-        ctx.fillRect(
-          points[0].x - padding,
-          points[0].y - fontSize - padding,
-          metrics.width + padding * 2,
-          fontSize + padding * 2
-        );
-        ctx.globalAlpha = 1;
+        ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        // Dark outline for readability on any background
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(text, points[0].x, points[0].y);
+        // Fill with selected color
         ctx.fillStyle = color;
         ctx.fillText(text, points[0].x, points[0].y);
         break;
@@ -549,6 +568,14 @@ export class AnnotationCanvas {
 
   /** Replace the background image and resize the canvas (used by crop) */
   replaceBackground(newDataUrl: string) {
+    // Save pre-crop state for undo
+    this.cropHistory.push({
+      bgSrc: this.bgImage.src,
+      width: this.width,
+      height: this.height,
+      annotations: [...this.annotations],
+      nextNumber: this.nextNumber,
+    });
     const img = new Image();
     img.onload = () => {
       this.bgImage = img;

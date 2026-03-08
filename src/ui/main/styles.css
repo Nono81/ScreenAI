@@ -1240,11 +1240,15 @@ body {
   padding: 3px 6px;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 5px;
-  background: rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.7);
+  background: #1a1a2e;
+  color: rgba(255,255,255,0.9);
   font-size: 11px;
   outline: none;
   cursor: pointer;
+}
+.scb-delay-sel option {
+  background: #1a1a2e;
+  color: #e0e0e0;
 }
 .scb-delay-sel:focus { border-color: rgba(167,139,250,0.4); }
 .scb-go {
