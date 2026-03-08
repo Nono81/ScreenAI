@@ -28,7 +28,9 @@ export class AnnotationCanvas {
 
   public onToolChange: ((tool: AnnotationTool) => void) | null = null;
   public onColorPicked: ((hex: string, r: number, g: number, b: number) => void) | null = null;
+  public onAnnotationSelected: ((ann: Annotation | null, index: number) => void) | null = null;
   private cropHistory: { bgSrc: string; width: number; height: number; annotations: Annotation[]; nextNumber: number }[] = [];
+  private selectedIndex: number = -1;
 
   constructor(
     private container: HTMLElement,
@@ -153,7 +155,18 @@ export class AnnotationCanvas {
 
   private bindEvents() {
     this.canvas.addEventListener('mousedown', (e) => {
-      if (this.currentTool === 'pointer') return;
+      if (this.currentTool === 'pointer') {
+        const { x, y } = this.getCanvasCoords(e);
+        // Find topmost annotation under cursor
+        let found = -1;
+        for (let i = this.annotations.length - 1; i >= 0; i--) {
+          if (this.hitTest(this.annotations[i], x, y)) { found = i; break; }
+        }
+        this.selectedIndex = found;
+        this.redraw();
+        this.onAnnotationSelected?.(found >= 0 ? this.annotations[found] : null, found);
+        return;
+      }
 
       const { x, y } = this.getCanvasCoords(e);
 
@@ -373,8 +386,14 @@ export class AnnotationCanvas {
     }
 
     // Draw all annotations
-    for (const ann of this.annotations) {
+    for (let i = 0; i < this.annotations.length; i++) {
+      const ann = this.annotations[i];
       this.drawShape(ann.type, ann.points, ann.color, ann.lineWidth, true, ann.text, ann.number);
+
+      // Draw selection outline
+      if (i === this.selectedIndex) {
+        this.drawSelectionOutline(ann);
+      }
     }
   }
 
@@ -540,6 +559,46 @@ export class AnnotationCanvas {
     ctx.restore();
   }
 
+  private drawSelectionOutline(ann: Annotation) {
+    const ctx = this.ctx;
+    const pts = ann.points;
+    if (!pts.length) return;
+
+    ctx.save();
+    ctx.strokeStyle = '#7c3aed';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+
+    if (ann.type === 'number') {
+      const p = pts[0];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (ann.type === 'text') {
+      const fontSize = 18 + ann.lineWidth * 2;
+      ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      const metrics = ctx.measureText(ann.text || '');
+      const pad = 4;
+      ctx.strokeRect(pts[0].x - pad, pts[0].y - fontSize - pad, metrics.width + pad * 2, fontSize + pad * 2);
+    } else if (ann.type === 'freehand' || ann.type === 'highlighter') {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of pts) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
+      const pad = 6;
+      ctx.strokeRect(minX - pad, minY - pad, maxX - minX + pad * 2, maxY - minY + pad * 2);
+    } else if (pts.length >= 2) {
+      const start = pts[0], end = pts[pts.length - 1];
+      const pad = 6;
+      const x = Math.min(start.x, end.x) - pad;
+      const y = Math.min(start.y, end.y) - pad;
+      const w = Math.abs(end.x - start.x) + pad * 2;
+      const h = Math.abs(end.y - start.y) + pad * 2;
+      ctx.strokeRect(x, y, w, h);
+    }
+
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   private pixelateRegion(x: number, y: number, w: number, h: number, pixelSize: number) {
     const ctx = this.ctx;
     // Clamp to canvas bounds
@@ -560,6 +619,37 @@ export class AnnotationCanvas {
         ctx.fillRect(sx + px, sy + py, pixelSize, pixelSize);
       }
     }
+  }
+
+  getSelectedIndex(): number { return this.selectedIndex; }
+
+  updateSelectedColor(color: string) {
+    if (this.selectedIndex >= 0 && this.selectedIndex < this.annotations.length) {
+      this.annotations[this.selectedIndex].color = color;
+      this.redraw();
+    }
+  }
+
+  updateSelectedLineWidth(w: number) {
+    if (this.selectedIndex >= 0 && this.selectedIndex < this.annotations.length) {
+      this.annotations[this.selectedIndex].lineWidth = w;
+      this.redraw();
+    }
+  }
+
+  deleteSelected() {
+    if (this.selectedIndex >= 0 && this.selectedIndex < this.annotations.length) {
+      this.annotations.splice(this.selectedIndex, 1);
+      this.selectedIndex = -1;
+      this.redoStack = [];
+      this.redraw();
+      this.onAnnotationSelected?.(null, -1);
+    }
+  }
+
+  clearSelection() {
+    this.selectedIndex = -1;
+    this.redraw();
   }
 
   getCanvas(): HTMLCanvasElement {

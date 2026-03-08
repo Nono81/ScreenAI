@@ -8,7 +8,7 @@ import { conversationStore, settingsStore } from '../../storage';
 import { createConnector } from '../../connectors';
 import { renderMarkdown } from '../../utils/markdown';
 import { generatePdfBlob } from './PdfExport';
-import type { Conversation, Message, AIProviderType, AppSettings, Screenshot, AppLanguage } from '../../types';
+import type { Annotation, Conversation, Message, AIProviderType, AppSettings, Screenshot, AppLanguage } from '../../types';
 import { generateId, PROVIDER_LABELS, DEFAULT_MODELS, LANGUAGE_LABELS, LANGUAGE_PROMPTS, MODEL_OPTIONS, DEFAULT_SYSTEM_PROMPT } from '../../types';
 
 export class ScreenAIOverlay {
@@ -154,6 +154,7 @@ export class ScreenAIOverlay {
 
     // Primary tools — always visible
     const primaryTools: { id: string; label: string; key: string }[] = [
+      { id: 'pointer', label: 'Selectionner', key: 'P' },
       { id: 'freehand', label: 'Crayon', key: 'D' },
       { id: 'arrow', label: 'Fleche', key: 'A' },
       { id: 'rectangle', label: 'Rectangle', key: 'R' },
@@ -179,7 +180,7 @@ export class ScreenAIOverlay {
     let html = '<div class="sai-tools sai-tools-primary">';
     for (const tool of primaryTools) {
       const keyHint = tool.key ? ` (${tool.key})` : '';
-      html += `<button class="sai-tool-btn ${tool.id === 'freehand' ? 'active' : ''}" data-tool="${tool.id}" title="${tool.label}${keyHint}">${I[tool.id] || ''}</button>`;
+      html += `<button class="sai-tool-btn ${tool.id === 'pointer' ? 'active' : ''}" data-tool="${tool.id}" title="${tool.label}${keyHint}">${I[tool.id] || ''}</button>`;
     }
     html += '</div>';
 
@@ -240,6 +241,11 @@ export class ScreenAIOverlay {
         if (tool === 'ocr') { this.handleOCR(); return; }
         this.updateToolbarActive(tool);
         this.annotationCanvas?.setTool(tool as AnnotationTool);
+        // Clear selection when switching tools
+        if (tool !== 'pointer') {
+          this.annotationCanvas?.clearSelection();
+          this.root.shadowRoot!.querySelector('.sai-sel-popover')?.remove();
+        }
       });
     });
 
@@ -274,6 +280,11 @@ export class ScreenAIOverlay {
     colorDot?.addEventListener('click', () => {
       const willOpen = !popover.classList.contains('open');
       morePopover?.classList.remove('open');
+      if (willOpen) {
+        const rect = colorDot.getBoundingClientRect();
+        popover.style.left = (rect.right + 8) + 'px';
+        popover.style.top = rect.top + 'px';
+      }
       popover.classList.toggle('open');
       if (willOpen) { colorJustOpened = true; setTimeout(() => colorJustOpened = false, 50); }
     });
@@ -565,13 +576,78 @@ export class ScreenAIOverlay {
 
       // Wire up color picker callback
       this.annotationCanvas!.onColorPicked = (hex, r, g, b) => {
-        // Update toolbar color buttons — deselect all, show picked color
         if (this.toolbarContainer) {
           this.toolbarContainer.querySelectorAll('.sai-color-btn').forEach(b => b.classList.remove('active'));
         }
         this.showColorInfo(hex, r, g, b);
       };
+
+      // Wire up annotation selection callback
+      this.annotationCanvas!.onAnnotationSelected = (ann, idx) => {
+        this.handleAnnotationSelected(ann, idx);
+      };
     };
+  }
+
+  private handleAnnotationSelected(ann: Annotation | null, idx: number) {
+    const shadow = this.root.shadowRoot!;
+    shadow.querySelector('.sai-sel-popover')?.remove();
+    if (!ann || idx < 0) return;
+
+    const canvas = this.annotationCanvas!.getCanvas();
+    const rect = canvas.getBoundingClientRect();
+    const pts = ann.points;
+    if (!pts.length) return;
+
+    // Calculate position of the annotation on screen
+    const scaleX = rect.width / canvas.width;
+    const scaleY = rect.height / canvas.height;
+    let cx: number, cy: number;
+    if (ann.type === 'number' || ann.type === 'text') {
+      cx = rect.left + pts[0].x * scaleX;
+      cy = rect.top + pts[0].y * scaleY;
+    } else if (pts.length >= 2) {
+      const start = pts[0], end = pts[pts.length - 1];
+      cx = rect.left + ((start.x + end.x) / 2) * scaleX;
+      cy = rect.top + Math.min(start.y, end.y) * scaleY;
+    } else {
+      cx = rect.left + pts[0].x * scaleX;
+      cy = rect.top + pts[0].y * scaleY;
+    }
+
+    const colors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#AF52DE', '#FFFFFF'];
+    const popover = document.createElement('div');
+    popover.className = 'sai-sel-popover';
+    popover.style.cssText = `position:fixed;left:${cx}px;top:${Math.max(10, cy - 50)}px;transform:translateX(-50%);background:var(--bg3,#1e1e2e);border:1px solid var(--bd,#333);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:8px;z-index:9999;display:flex;align-items:center;gap:6px;`;
+
+    let html = '';
+    for (const c of colors) {
+      html += `<button class="sai-sel-color" data-sel-color="${c}" style="width:22px;height:22px;border-radius:50%;border:2px solid ${c === ann.color ? '#fff' : 'transparent'};background:${c};cursor:pointer;transition:border-color .15s;" title="${c}"></button>`;
+    }
+    html += `<div style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 2px;"></div>`;
+    html += `<button class="sai-sel-del" style="width:26px;height:26px;border-radius:6px;border:none;background:rgba(255,60,60,0.15);color:#ff6b6b;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>`;
+
+    popover.innerHTML = html;
+    shadow.appendChild(popover);
+
+    // Color change
+    popover.querySelectorAll('.sai-sel-color').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const color = (btn as HTMLElement).dataset.selColor!;
+        this.annotationCanvas?.updateSelectedColor(color);
+        // Update border highlights
+        popover.querySelectorAll('.sai-sel-color').forEach(b => (b as HTMLElement).style.borderColor = 'transparent');
+        (btn as HTMLElement).style.borderColor = '#fff';
+      });
+    });
+
+    // Delete
+    popover.querySelector('.sai-sel-del')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.annotationCanvas?.deleteSelected();
+      popover.remove();
+    });
   }
 
   private showColorInfo(hex: string, r: number, g: number, b: number) {
@@ -1293,6 +1369,8 @@ export class ScreenAIOverlay {
         gap: 2px;
         overflow-y: auto;
         overflow-x: visible;
+        z-index: 10;
+        position: relative;
       }
 
       .sai-tools {
@@ -1367,11 +1445,7 @@ export class ScreenAIOverlay {
 
       /* Color popover */
       .sai-color-popover {
-        position: absolute;
-        left: 100%;
-        top: 50%;
-        transform: translateY(-50%);
-        margin-left: 8px;
+        position: fixed;
         background: var(--bg3);
         border: 1px solid var(--bd);
         border-radius: var(--r);
@@ -1380,7 +1454,7 @@ export class ScreenAIOverlay {
         display: none;
         flex-direction: column;
         gap: 10px;
-        z-index: 200;
+        z-index: 9999;
         min-width: 180px;
       }
       .sai-color-popover.open { display: flex; }
