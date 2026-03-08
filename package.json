@@ -1,7 +1,7 @@
 {
   "name": "screenai",
   "version": "1.4.0",
-  "description": "Desktop AI Screen Assistant — Capture, Annotate, Ask Any AI",
+  "description": "ScreenAI — Capture. Annotate. Ask AI.",
   "private": true,
   "type": "module",
   "scripts": {

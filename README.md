@@ -1,4 +1,4 @@
-# ScreenAI — Universal AI Screen Assistant
+# ScreenAI — Capture. Annotate. Ask AI.
 
 > **Capture. Annotate. Ask any AI.** Without leaving your workflow.
 

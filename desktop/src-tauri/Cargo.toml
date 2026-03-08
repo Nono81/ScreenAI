@@ -1,7 +1,7 @@
 [package]
 name = "screenai-desktop"
 version = "1.4.0"
-description = "ScreenAI — Universal AI Screen Assistant"
+description = "ScreenAI — Capture. Annotate. Ask AI."
 authors = ["ScreenAI"]
 license = "AGPL-3.0-or-later"
 edition = "2021"
